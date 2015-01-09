@@ -8,6 +8,7 @@ import (
 	"github.com/eris-ltd/thelonious/monkdb"
 	"github.com/eris-ltd/thelonious/monkutil"
 	"github.com/eris-ltd/thelonious/monkwire"
+	"github.com/project-douglas/lllc-server"
 )
 
 /*
@@ -59,8 +60,8 @@ func exit(err error) {
 
 // compile LLL file into evm bytecode
 // returns hex
-func CompileLLL(filename string, literal bool) string {
-	code, err := monkutil.CompileLLL(filename, literal)
+func Compile(filename string) string {
+	code, err := lllcserver.Compile(filename)
 	if err != nil {
 		fmt.Println("error compiling lll!", err)
 		return ""

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eris-ltd/epm-go/utils"
-	"github.com/eris-ltd/thelonious/monkutil"
 	"io/ioutil"
 	"os"
 	"path"
@@ -106,7 +105,7 @@ func (mod *GenBlockModule) gConfig() {
 	cfg := mod.Config
 	// set lll path
 	if cfg.LLLPath != "" {
-		monkutil.PathToLLL = cfg.LLLPath
+		//monkutil.PathToLLL = cfg.LLLPath
 	}
 
 	// check on data dir
