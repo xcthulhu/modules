@@ -7,12 +7,11 @@ import (
 	"os"
 	"os/user"
 	"strconv"
-	"strings"
 
 	"github.com/eris-ltd/decerver-interfaces/core"
 	"github.com/eris-ltd/decerver-interfaces/events"
-	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/decerver-interfaces/modules"
+	mutils "github.com/eris-ltd/modules/monkutils"
 
 	"github.com/eris-ltd/thelonious/monkchain"
 	"github.com/eris-ltd/thelonious/monkcrypto"
@@ -247,18 +246,15 @@ func (mod *GenBlockModule) Msg(addr string, data []string) (string, error) {
 
 // Deploy a new contract. Note the addresses of core contracts must be stored in gendoug if
 // thelonious is expected to find them. Also note the gendoug contract must have `gendoug` in the name!
-func (mod *GenBlockModule) Script(file, lang string) (string, error) {
-	if strings.Contains(file, "gendoug") {
+func (mod *GenBlockModule) Script(code string) (string, error) {
+	/*if strings.Contains(file, "gendoug") {
 		addr := []byte("0000000000THISISDOUG")
-		_, _, err := monkdoug.MakeApplyTx(file, addr, nil, mod.fetchKeyPair(), mod.block)
-		if err != nil {
-			fmt.Println("script deploy err:", err)
-			return "", err
-		}
-		return monkutil.Bytes2Hex(addr), nil
-	}
+	}*/
 
-	tx, _, err := monkdoug.MakeApplyTx(file, nil, nil, mod.fetchKeyPair(), mod.block)
+	// TODO!!!!
+	// need away to find out if this is the genduog contract so we can set the address!!!
+
+	tx, _, err := monkdoug.MakeApplyTx(code, nil, nil, mod.fetchKeyPair(), mod.block)
 	if err != nil {
 		fmt.Println("script deploy err:", err)
 		return "", err
@@ -400,17 +396,6 @@ func (mod *GenBlockModule) fetchPriv() string {
 
 func (mod *GenBlockModule) fetchKeyPair() *monkcrypto.KeyPair {
 	return mod.keyManager.KeyPair()
-}
-
-// compile LLL file into evm bytecode
-// returns hex
-func CompileLLL(filename string, literal bool) string {
-	code, err := monkutil.CompileLLL(filename, literal)
-	if err != nil {
-		fmt.Println("error compiling lll!", err)
-		return ""
-	}
-	return "0x" + monkutil.Bytes2Hex(code)
 }
 
 // some convenience functions

@@ -3,7 +3,6 @@ package eth
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
@@ -200,8 +199,8 @@ func (mod *EthModule) Msg(addr string, data []string) (string, error) {
 	return mod.eth.Msg(addr, data)
 }
 
-func (mod *EthModule) Script(file, lang string) (string, error) {
-	return mod.eth.Script(file, lang)
+func (mod *EthModule) Script(code string) (string, error) {
+	return mod.eth.Script(code)
 }
 
 func (mod *EthModule) Subscribe(name, event, target string) chan events.Event {
@@ -406,8 +405,8 @@ func (eth *Eth) Msg(addr string, data []string) (string, error) {
 }
 
 // TODO: implement CompileLLL
-func (eth *Eth) Script(file, lang string) (string, error) {
-	var script string
+func (eth *Eth) Script(script string) (string, error) {
+	/*var script string
 	if lang == "lll-literal" {
 		script = CompileLLL(file, true)
 	}
@@ -420,7 +419,7 @@ func (eth *Eth) Script(file, lang string) (string, error) {
 
 	} else {
 		script = file
-	}
+	}*/
 	// messy key system...
 	// chain should have an 'active key'
 	keys := eth.fetchKeyPair()

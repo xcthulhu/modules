@@ -3,7 +3,6 @@ package monkrpc
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
@@ -12,8 +11,8 @@ import (
 
 	"github.com/eris-ltd/decerver-interfaces/core"
 	"github.com/eris-ltd/decerver-interfaces/events"
-	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/decerver-interfaces/modules"
+	mutils "github.com/eris-ltd/modules/monkutils"
 
 	"github.com/eris-ltd/thelonious/monkchain"
 	"github.com/eris-ltd/thelonious/monkcrypto"
@@ -202,14 +201,15 @@ func (mod *MonkRpcModule) Msg(addr string, data []string) (string, error) {
 }
 
 // Deploy a new contract.
-func (mod *MonkRpcModule) Script(file, lang string) (string, error) {
-	logger.Debugln("Deploying script: ", file)
-	var scriptHex string
+func (mod *MonkRpcModule) Script(scriptHex string) (string, error) {
+	//logger.Debugln("Deploying script: ", file)
+
+	/*var scriptHex string
 	if lang == "lll-literal" {
-		scriptHex = mutils.CompileLLL(file, true)
+		scriptHex = mutils.Compile(file)
 	}
 	if lang == "lll" {
-		scriptHex = mutils.CompileLLL(file, false) // if lll, compile and pass along
+		scriptHex = mutils.Compile(file, false) // if lll, compile and pass along
 	} else if lang == "mutan" {
 		s, _ := ioutil.ReadFile(file) // if mutan, pass along and pipe will compile
 		scriptHex = string(s)
@@ -217,7 +217,7 @@ func (mod *MonkRpcModule) Script(file, lang string) (string, error) {
 
 	} else {
 		scriptHex = file
-	}
+	}*/
 
 	if mod.Config.Local {
 		args := mod.newLocalTx("", VALUE, GAS, GASPRICE, scriptHex)

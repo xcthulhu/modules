@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/epm-go/utils"
+	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/thelonious/monkutil"
 	"io/ioutil"
 	"os"
@@ -131,7 +131,7 @@ func (mod *MonkRpcModule) rConfig() {
 	cfg := mod.Config
 	// set lll path
 	if cfg.LLLPath != "" {
-		monkutil.PathToLLL = cfg.LLLPath
+		//monkutil.PathToLLL = cfg.LLLPath
 	}
 
 	// check on data dir
