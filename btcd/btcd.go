@@ -10,9 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/eris-ltd/decerver-interfaces/core"
-	"github.com/eris-ltd/decerver-interfaces/events"
-	"github.com/eris-ltd/decerver-interfaces/modules"
+	"github.com/eris-ltd/modules/types"
 
 	rpc "github.com/conformal/btcrpcclient"
 	"github.com/conformal/btcutil"
@@ -29,14 +27,10 @@ type BTC struct {
 	// we also use a single client for get and push calls
 	client   *rpc.Client
 	notifies map[string]*rpc.Client
-	chans    map[string]chan events.Event
+	chans    map[string]chan types.Event
 
 	btcproc    *os.Process
 	walletproc *os.Process
-}
-
-func (b *BTC) Register(fileIO core.FileIO, runtime core.Runtime, eReg events.EventRegistry) error {
-	return nil
 }
 
 func NewBtcd() *BTC {
@@ -83,7 +77,7 @@ func (b *BTC) Init() error {
 	}
 	b.walletConfig = connCfg
 
-	b.chans = make(map[string]chan events.Event)
+	b.chans = make(map[string]chan types.Event)
 	b.notifies = make(map[string]*rpc.Client)
 
 	return nil
@@ -159,13 +153,13 @@ func (b *BTC) Name() string {
 	return "btcd"
 }
 
-func (b *BTC) Subscribe(name string, event string, target string) chan events.Event {
+func (b *BTC) Subscribe(name string, event string, target string) chan types.Event {
 	// for each subscription we create a new websocket connection client
 	// with a set of handlers (the callbacks)
 	// and a corresponding channel to push the event up
 	handlers := rpc.NotificationHandlers{}
-	ch := make(chan events.Event)
-	eve := events.Event{
+	ch := make(chan types.Event)
+	eve := types.Event{
 		Event:     event,
 		Target:    target,
 		Source:    b.Name(),
@@ -277,12 +271,12 @@ func (b *BTC) IsAutocommit() bool {
    BTCD does not yet have support for mining and account balances
 */
 
-func (b *BTC) State() modules.State {
+func (b *BTC) State() types.State {
 	// not currently supported for btcd
-	return modules.State{}
+	return types.State{}
 }
 
-func (b *BTC) Storage(target string) modules.Storage {
+func (b *BTC) Storage(target string) types.Storage {
 	// not currently supported for btcd
-	return modules.Storage{}
+	return types.Storage{}
 }
