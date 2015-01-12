@@ -104,7 +104,6 @@ func (b *BlkChainInfo) Init() error {
 		}
 		bciAccountListToDecerverAccountList(a1, b.Addresses)
 	}
-	
 
 	// sets the channels map
 	b.chans = make(map[string]chan events.Event)
@@ -116,6 +115,14 @@ func (b *BlkChainInfo) Start() error {
 	return nil
 }
 
+func (b *BlkChainInfo) ReadConfig(config string) error {
+	return nil
+}
+
+func (b *BlkChainInfo) WriteConfig(config string) error {
+	return nil
+}
+
 // Shutdown simply stops any pollers
 func (b *BlkChainInfo) Shutdown() error {
 	b.stopPollBlocks()
@@ -123,7 +130,7 @@ func (b *BlkChainInfo) Shutdown() error {
 	for addr := range b.addressesPolled {
 		b.stopPollAddresses(addr)
 	}
-	
+
 	return nil
 }
 
@@ -142,7 +149,8 @@ func (b *BlkChainInfo) Name() string {
 	return "blockchaininfo"
 }
 
-func (b *BlkChainInfo) SetProperty(name string, data interface{}) {
+func (b *BlkChainInfo) SetProperty(name string, data interface{}) error {
+	return nil
 }
 
 func (b *BlkChainInfo) Property(name string) interface{} {
@@ -301,7 +309,7 @@ func (b *BlkChainInfo) IsAutocommit() modules.JsObject {
        * https://github.com/eris-ltd/decerver-interfaces/blob/master/modules/modules.go
 
 */
-func (b *BlkChainInfo) ActiveAddress() modules.JsObject {
+func (b *BlkChainInfo) ActiveAddress() string {
 	return modules.JsReturnValNoErr(b.Addresses.ActiveAddress)
 }
 
