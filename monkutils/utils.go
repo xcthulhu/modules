@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/eris-ltd/lllc-server"
 	"github.com/eris-ltd/thelonious/monkcrypto"
 	"github.com/eris-ltd/thelonious/monkdb"
 	"github.com/eris-ltd/thelonious/monkutil"
 	"github.com/eris-ltd/thelonious/monkwire"
-	"github.com/eris-ltd/lllc-server"
 )
 
 /*
