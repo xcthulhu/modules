@@ -32,7 +32,7 @@ var (
 //Logging
 var logger *monklog.Logger = monklog.NewLogger("GenBlock")
 
-// Implements decerver-interfaces Blockchain
+// Implements epm.Blockchain
 // strictly for using epm to launch genesis blocks
 type GenBlockModule struct {
 	Config     *ChainConfig
