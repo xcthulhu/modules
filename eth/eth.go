@@ -44,10 +44,10 @@ type Eth struct {
 	ethereum   *eth.Ethereum
 	pipe       *xeth.XEth
 	keyManager *crypto.KeyManager
-	//reactor    *react.ReactorEngine
-	started bool
-	chans   map[string]chan types.Event
-	//reactchans map[string]chan ethreact.Event
+	eventMux   *ethevent.TypeMux
+	started    bool
+	chans      map[string]chan types.Event
+	reactchans map[string]<-chan interface{}
 }
 
 /*
@@ -99,11 +99,11 @@ func (mod *EthModule) Init() error {
 
 	m.pipe = pipe
 	m.keyManager = m.ethereum.KeyManager()
-	//m.reactor = m.ethereum.Reactor()
+	m.eventMux = m.ethereum.EventMux()
 
 	// subscribe to the new block
 	m.chans = make(map[string]chan types.Event)
-	//m.reactchans = make(map[string]chan ethreact.Event)
+	m.reactchans = make(map[string]<-chan interface{})
 	m.Subscribe("newBlock", "newBlock", "")
 
 	log.Println(m.ethereum.Port)
@@ -114,7 +114,7 @@ func (mod *EthModule) Init() error {
 // start the ethereum node
 func (mod *EthModule) Start() error {
 	m := mod.eth
-	m.ethereum.Start(true) // peer seed
+	m.ethereum.Start(m.config.UseSeed) // peer seed
 	m.started = true
 
 	if m.config.Mining {
@@ -417,7 +417,7 @@ func (eth *Eth) Script(script string) (string, error) {
 	keys := eth.fetchKeyPair()
 
 	// well isn't this pretty! barf
-	tx, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("2000000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
+	tx, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("200000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
 	if err != nil {
 		return "", err
 	}
@@ -426,36 +426,42 @@ func (eth *Eth) Script(script string) (string, error) {
 
 // returns a chanel that will fire when address is updated
 func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
-	/*
-		th_ch := make(chan ethreact.Event, 1)
-		if target != "" {
-			addr := string(ethutil.Hex2Bytes(target))
-			eth.reactor.Subscribe("object:"+addr, th_ch)
-		} else {
-			eth.reactor.Subscribe(event, th_ch)
-		}
+	var eventObj interface{}
+	var subscriber ethevent.Subscription
+	switch event {
+	case "newBlock":
+		eventObj = core.NewBlockEvent{}
+		subscriber = eth.eventMux.Subscribe(eventObj)
+	}
 
-		ch := make(chan events.Event)
-		eth.chans[name] = ch
-		eth.reactchans[name] = th_ch
+	th_ch := subscriber.Chan()
 
-		// fire up a goroutine and broadcast module specific chan on our main chan
-		go func() {
-			for {
-				eve, more := <-th_ch
-				if !more {
-					break
-				}
-				returnEvent := events.Event{
-					Event:     event,
-					Target:    target,
-					Source:    "eth",
-					TimeStamp: time.Now(),
-				}
-				// cast resource to appropriate type
+	ch := make(chan types.Event)
+	eth.chans[name] = ch
+	eth.reactchans[name] = th_ch
+
+	// fire up a goroutine and broadcast module specific chan on our main chan
+	go func() {
+		for {
+			eve, more := <-th_ch
+			if !more {
+				break
+			}
+			returnEvent := types.Event{
+				Event:     event,
+				Target:    target,
+				Source:    "eth",
+				TimeStamp: time.Now(),
+			}
+			switch eve := eve.(type) {
+			case core.NewBlockEvent:
+				block := eve.Block
+				returnEvent.Resource = convertBlock(block)
+			case core.TxPreEvent:
+			}
+			// cast resource to appropriate type
+			/*
 				resource := eve.Resource
-				if block, ok := resource.(*chain.Block); ok {
-					returnEvent.Resource = convertBlock(block)
 				} else if tx, ok := resource.(chain.Transaction); ok {
 					returnEvent.Resource = convertTx(&tx)
 				} else if txFail, ok := resource.(chain.TxFail); ok {
@@ -464,12 +470,11 @@ func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
 					returnEvent.Resource = tx
 				} else {
 					ethlogger.Errorln("Invalid event resource type", resource)
-				}
-				ch <- returnEvent
-			}
-		}()
-		return ch
-	*/
+				}*/
+			ch <- returnEvent
+		}
+	}()
+	return ch
 	return nil
 }
 
