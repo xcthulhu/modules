@@ -14,7 +14,8 @@ import (
 
 	"github.com/eris-ltd/go-ethereum"
 	//"github.com/eris-ltd/go-ethereum/chain"
-	ethtypes "github.com/eris-ltd/go-ethereum/chain/types"
+	"github.com/eris-ltd/go-ethereum/core"
+	ethtypes "github.com/eris-ltd/go-ethereum/core/types"
 	"github.com/eris-ltd/go-ethereum/crypto"
 	"github.com/eris-ltd/go-ethereum/logger"
 	"github.com/eris-ltd/go-ethereum/xeth"
@@ -249,7 +250,7 @@ func (mod *EthModule) AddressCount() int {
     in standalone applications, testing, and debuging
 */
 
-func (mod *EthModule) EthState() *state.State {
+func (mod *EthModule) EthState() *state.StateDB {
 	return mod.eth.pipe.World().State()
 }
 
@@ -342,11 +343,11 @@ func (eth *Eth) StorageAt(contract_addr string, storage_addr string) string {
 }
 
 func (eth *Eth) BlockCount() int {
-	return int(eth.ethereum.ChainManager().LastBlockNumber)
+	return int(eth.ethereum.ChainManager().LastBlockNumber())
 }
 
 func (eth *Eth) LatestBlock() string {
-	return ethutil.Bytes2Hex(eth.ethereum.ChainManager().CurrentBlock.Hash())
+	return ethutil.Bytes2Hex(eth.ethereum.ChainManager().CurrentBlock().Hash())
 }
 
 func (eth *Eth) Block(hash string) *types.Block {
@@ -375,13 +376,13 @@ func (eth *Eth) Tx(addr, amt string) (string, error) {
 	byte_addr := ethutil.Hex2Bytes(addr)
 	// note, NewValue will not turn a string int into a big int..
 	start := time.Now()
-	hash, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("20000000000")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
+	tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("20000000000")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
 	dif := time.Since(start)
 	fmt.Println("pipe tx took ", dif)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(hash), nil
+	return ethutil.Bytes2Hex(tx.Hash()), nil
 }
 
 // send a message to a contract
@@ -390,11 +391,11 @@ func (eth *Eth) Msg(addr string, data []string) (string, error) {
 	keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
 	byte_addr := ethutil.Hex2Bytes(addr)
-	hash, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big("350")), ethutil.NewValue(ethutil.Big("200000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(packed))
+	tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big("350")), ethutil.NewValue(ethutil.Big("200000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(packed))
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(hash), nil
+	return ethutil.Bytes2Hex(tx.Hash()), nil
 }
 
 // TODO: implement CompileLLL
@@ -418,11 +419,11 @@ func (eth *Eth) Script(script string) (string, error) {
 	keys := eth.fetchKeyPair()
 
 	// well isn't this pretty! barf
-	contract_addr, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("2000000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
+	tx, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("2000000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(contract_addr), nil
+	return ethutil.Bytes2Hex(core.AddressFromMessage(tx)), nil
 }
 
 // returns a chanel that will fire when address is updated
@@ -730,7 +731,7 @@ func convertBlock(block *ethtypes.Block) *types.Block {
 	b.GasLimit = block.GasLimit.String()
 	b.GasUsed = block.GasUsed.String()
 	b.Hash = hex.EncodeToString(block.Hash())
-	b.MinGasPrice = block.MinGasPrice.String()
+	//b.MinGasPrice = block.MinGasPrice.String()
 	b.Nonce = hex.EncodeToString(block.Nonce)
 	b.Number = block.Number.String()
 	b.PrevHash = hex.EncodeToString(block.PrevHash)
@@ -752,13 +753,13 @@ func convertBlock(block *ethtypes.Block) *types.Block {
 // convert ethereum tx to types tx
 func convertTx(ethTx *ethtypes.Transaction) *types.Transaction {
 	tx := &types.Transaction{}
-	tx.ContractCreation = ethTx.CreatesContract()
-	tx.Gas = ethTx.Gas.String()
-	tx.GasCost = ethTx.GasPrice.String()
+	tx.ContractCreation = ethtypes.IsContractAddr(ethTx.To())
+	tx.Gas = ethTx.Gas().String()
+	tx.GasCost = ethTx.GasPrice().String()
 	tx.Hash = hex.EncodeToString(ethTx.Hash())
 	tx.Nonce = fmt.Sprintf("%d", ethTx.Nonce)
-	tx.Recipient = hex.EncodeToString(ethTx.Recipient)
+	tx.Recipient = hex.EncodeToString(ethTx.To())
 	tx.Sender = hex.EncodeToString(ethTx.Sender())
-	tx.Value = ethTx.Value.String()
+	tx.Value = ethTx.Value().String()
 	return tx
 }
