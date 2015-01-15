@@ -299,24 +299,6 @@ func StopMining(ethereum *eth.Ethereum) bool {
 	return false
 }
 
-// Replay block
-func BlockDo(ethereum *eth.Ethereum, hash []byte) error {
-	block := ethereum.ChainManager().GetBlock(hash)
-	if block == nil {
-		return fmt.Errorf("unknown block %x", hash)
-	}
-
-	parent := ethereum.ChainManager().GetBlock(block.PrevHash)
-
-	_, err := ethereum.BlockManager().ApplyDiff(parent.State(), parent, block)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
 // If an address is empty, load er up
 // vestige of ye old key days
 /*
