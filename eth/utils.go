@@ -21,7 +21,7 @@ import (
 	//"github.com/eris-ltd/go-ethereum/xeth"
 	//"github.com/eris-ltd/go-ethereum/monkrpc"
 	"github.com/eris-ltd/go-ethereum/ethutil"
-	"github.com/eris-ltd/go-ethereum/wire"
+	wire "github.com/eris-ltd/go-ethereum/wire"
 )
 
 // this is basically go-etheruem/utils

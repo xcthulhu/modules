@@ -33,6 +33,7 @@ type ChainConfig struct {
 	KeyFile          string `json:"key_file"`
 	Difficulty       string `json:"difficulty"`
 	LogLevel         int    `json:"log_level"`
+	UseSeed          bool   `json:"use_seed"`
 	Adversary        int    `json:"adversary"`
 }
 
@@ -56,6 +57,7 @@ var DefaultConfig = &ChainConfig{
 	KeyCursor:        0,
 	KeyFile:          path.Join(ErisLtd, "decerver-interfaces", "glue", "eth", "keys.txt"),
 	LogLevel:         5,
+	UseSeed:          false,
 	Adversary:        0,
 }
 
