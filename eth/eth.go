@@ -12,7 +12,7 @@ import (
 
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/go-ethereum"
+	"github.com/eris-ltd/go-ethereum/eth"
 	//"github.com/eris-ltd/go-ethereum/chain"
 	"github.com/eris-ltd/go-ethereum/core"
 	ethtypes "github.com/eris-ltd/go-ethereum/core/types"
@@ -21,6 +21,7 @@ import (
 	"github.com/eris-ltd/go-ethereum/logger"
 	"github.com/eris-ltd/go-ethereum/xeth"
 	//"github.com/eris-ltd/go-ethereum/react"
+	ethutils "github.com/eris-ltd/go-ethereum/cmd/utils"
 	"github.com/eris-ltd/go-ethereum/ethutil"
 	"github.com/eris-ltd/go-ethereum/state"
 )
@@ -43,14 +44,15 @@ type EthModule struct {
 // this will get passed to Otto (javascript vm)
 // as such, it does not have "administrative" methods
 type Eth struct {
-	config     *ChainConfig
-	ethereum   *eth.Ethereum
-	pipe       *xeth.XEth
-	keyManager *crypto.KeyManager
-	eventMux   *ethevent.TypeMux
-	started    bool
-	chans      map[string]chan types.Event
-	reactchans map[string]<-chan interface{}
+	config      *ChainConfig
+	ethereum    *eth.Ethereum
+	pipe        *xeth.XEth
+	keyManager  *crypto.KeyManager
+	eventMux    *ethevent.TypeMux
+	started     bool
+	chans       map[string]chan types.Event
+	reactchans  map[string]<-chan interface{}
+	newBlockSub ethevent.Subscription
 }
 
 /*
@@ -107,9 +109,8 @@ func (mod *EthModule) Init() error {
 	// subscribe to the new block
 	m.chans = make(map[string]chan types.Event)
 	m.reactchans = make(map[string]<-chan interface{})
-	m.Subscribe("newBlock", "newBlock", "")
-
-	log.Println(m.ethereum.Port)
+	//m.Subscribe("newBlock", "newBlock", "")
+	//m.newBlockSub = m.eventMux.Subscribe(core.NewBlockEvent{})
 
 	return nil
 }
@@ -121,7 +122,7 @@ func (mod *EthModule) Start() error {
 	m.started = true
 
 	if m.config.Mining {
-		StartMining(m.ethereum)
+		ethutils.StartMining(m.ethereum)
 	}
 	return nil
 }
@@ -268,13 +269,15 @@ func (eth *Eth) WorldState() *types.WorldState {
 	state := eth.pipe.World().State()
 	stateMap := &types.WorldState{make(map[string]*types.Account), []string{}}
 
-	trieIterator := state.Trie.NewIterator()
-	trieIterator.Each(func(addr string, acct *ethutil.Value) {
+	it := state.Trie().Iterator()
+	for it.Next() { //(func(addr string, acct *ethutil.Value) {
+		addr := it.Key
+		//acct := it.Value
 		hexAddr := ethutil.Bytes2Hex([]byte(addr))
 		stateMap.Order = append(stateMap.Order, hexAddr)
 		stateMap.Accounts[hexAddr] = eth.Account(hexAddr)
 
-	})
+	}
 	return stateMap
 }
 
@@ -282,13 +285,15 @@ func (eth *Eth) State() *types.State {
 	state := eth.pipe.World().State()
 	stateMap := &types.State{make(map[string]*types.Storage), []string{}}
 
-	trieIterator := state.Trie.NewIterator()
-	trieIterator.Each(func(addr string, acct *ethutil.Value) {
+	it := state.Trie().Iterator()
+	for it.Next() { //(func(addr string, acct *ethutil.Value) {
+		addr := it.Key
+		//acct := it.Value
 		hexAddr := ethutil.Bytes2Hex([]byte(addr))
 		stateMap.Order = append(stateMap.Order, hexAddr)
 		stateMap.State[hexAddr] = eth.Storage(hexAddr)
 
-	})
+	}
 	return stateMap
 }
 
@@ -496,7 +501,8 @@ func (eth *Eth) UnSubscribe(name string) {
 // Mine a block
 func (m *Eth) Commit() {
 	m.StartMining()
-	_ = <-m.chans["newBlock"]
+	//_ = <-m.chans["newBlock"]
+	_ = <-m.newBlockSub.Chan()
 	v := false
 	for !v {
 		v = m.StopMining()
@@ -596,19 +602,35 @@ func (m *Eth) newEthereum() {
 	}
 	m.keyManager = keyManager
 
-	clientIdentity := NewClientIdentity(m.config.ClientIdentifier, m.config.Version, m.config.Identifier)
+	c := new(eth.Config)
+	m.fillConfig(c)
 
 	// create the ethereum obj
-	th, err := eth.New(db, clientIdentity, m.keyManager, eth.CapDefault, false)
+	//th, err := eth.New(db, clientIdentity, m.keyManager, eth.CapDefault, false)
+	th, err := eth.New(c)
 
 	if err != nil {
 		log.Fatal("Could not start node: %s\n", err)
 	}
 
-	th.Port = strconv.Itoa(m.config.Port)
-	th.MaxPeers = m.config.MaxPeers
-
 	m.ethereum = th
+}
+
+func (m *Eth) fillConfig(c *eth.Config) {
+	c.Port = strconv.Itoa(m.config.Port)
+	//c.Name = m.config.
+	c.Version = m.config.Version
+	c.Identifier = m.config.ClientIdentifier
+	c.KeyStore = m.config.KeyStore
+	c.DataDir = m.config.RootDir
+	c.LogFile = m.config.LogFile
+	c.LogLevel = m.config.LogLevel
+	c.KeyRing = m.config.KeySession
+	c.MaxPeers = m.config.MaxPeers
+	//c.NATType =
+	//c.PMPGateway
+	c.Shh = false
+	c.Dial = false
 }
 
 // returns hex addr of gendoug
@@ -732,25 +754,25 @@ func convertBlock(block *ethtypes.Block) *types.Block {
 		return nil
 	}
 	b := &types.Block{}
-	b.Coinbase = hex.EncodeToString(block.Coinbase)
-	b.Difficulty = block.Difficulty.String()
-	b.GasLimit = block.GasLimit.String()
-	b.GasUsed = block.GasUsed.String()
+	b.Coinbase = hex.EncodeToString(block.Coinbase())
+	b.Difficulty = block.Difficulty().String()
+	b.GasLimit = block.GasLimit().String()
+	b.GasUsed = block.GasUsed().String()
 	b.Hash = hex.EncodeToString(block.Hash())
 	//b.MinGasPrice = block.MinGasPrice.String()
-	b.Nonce = hex.EncodeToString(block.Nonce)
-	b.Number = block.Number.String()
-	b.PrevHash = hex.EncodeToString(block.PrevHash)
-	b.Time = int(block.Time)
+	b.Nonce = hex.EncodeToString(block.Nonce())
+	b.Number = block.Number().String()
+	b.PrevHash = hex.EncodeToString(block.ParentHash())
+	b.Time = int(block.Time())
 	txs := make([]*types.Transaction, len(block.Transactions()))
 	for idx, tx := range block.Transactions() {
 		txs[idx] = convertTx(tx)
 	}
 	b.Transactions = txs
-	b.TxRoot = hex.EncodeToString(block.TxSha)
-	b.UncleRoot = hex.EncodeToString(block.UncleSha)
-	b.Uncles = make([]string, len(block.Uncles))
-	for idx, u := range block.Uncles {
+	b.TxRoot = hex.EncodeToString(block.TxHash())
+	b.UncleRoot = hex.EncodeToString(block.UncleHash())
+	b.Uncles = make([]string, len(block.Uncles()))
+	for idx, u := range block.Uncles() {
 		b.Uncles[idx] = hex.EncodeToString(u.Hash())
 	}
 	return b
@@ -765,7 +787,7 @@ func convertTx(ethTx *ethtypes.Transaction) *types.Transaction {
 	tx.Hash = hex.EncodeToString(ethTx.Hash())
 	tx.Nonce = fmt.Sprintf("%d", ethTx.Nonce)
 	tx.Recipient = hex.EncodeToString(ethTx.To())
-	tx.Sender = hex.EncodeToString(ethTx.Sender())
+	tx.Sender = hex.EncodeToString(ethTx.From())
 	tx.Value = ethTx.Value().String()
 	return tx
 }

@@ -13,15 +13,14 @@ import (
 	"time"
 
 	"bitbucket.org/kardianos/osext"
-	eth "github.com/eris-ltd/go-ethereum"
 	"github.com/eris-ltd/go-ethereum/crypto"
+	eth "github.com/eris-ltd/go-ethereum/eth"
 	"github.com/eris-ltd/go-ethereum/ethdb"
 	"github.com/eris-ltd/go-ethereum/logger"
 	"github.com/eris-ltd/go-ethereum/miner"
 	//"github.com/eris-ltd/go-ethereum/xeth"
 	//"github.com/eris-ltd/go-ethereum/monkrpc"
 	"github.com/eris-ltd/go-ethereum/ethutil"
-	wire "github.com/eris-ltd/go-ethereum/wire"
 )
 
 // this is basically go-etheruem/utils
@@ -130,11 +129,6 @@ func NewDatabase(dbName string) ethutil.Database {
 		exit(err)
 	}
 	return db
-}
-
-func NewClientIdentity(clientIdentifier, version, customIdentifier string) *wire.SimpleClientIdentity {
-	ethlogger.Infoln("identity created")
-	return wire.NewSimpleClientIdentity(clientIdentifier, version, customIdentifier)
 }
 
 /*
@@ -261,9 +255,6 @@ func StartMining(ethereum *eth.Ethereum) bool {
 			}
 			// Give it some time to connect with peers
 			time.Sleep(3 * time.Second)
-			for !ethereum.IsUpToDate() {
-				time.Sleep(5 * time.Second)
-			}
 			myMiner.Start()
 		}()
 		RegisterInterrupt(func(os.Signal) {
