@@ -132,11 +132,6 @@ func NewDatabase(dbName string) ethutil.Database {
 	return db
 }
 
-func NewClientIdentity(clientIdentifier, version, customIdentifier string) *wire.SimpleClientIdentity {
-	ethlogger.Infoln("identity created")
-	return wire.NewSimpleClientIdentity(clientIdentifier, version, customIdentifier)
-}
-
 /*
 func NewEthereum(db ethutil.Database, clientIdentity wire.ClientIdentity, keyManager *crypto.KeyManager, usePnp bool, OutboundPort string, MaxPeer int) *eth.Thelonious {
 	ethereum, err := eth.New(db, clientIdentity, keyManager, eth.CapDefault, usePnp)
@@ -261,9 +256,6 @@ func StartMining(ethereum *eth.Ethereum) bool {
 			}
 			// Give it some time to connect with peers
 			time.Sleep(3 * time.Second)
-			for !ethereum.IsUpToDate() {
-				time.Sleep(5 * time.Second)
-			}
 			myMiner.Start()
 		}()
 		RegisterInterrupt(func(os.Signal) {
