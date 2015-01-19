@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/eris-ltd/lllc-server"
-	"github.com/eris-ltd/thelonious/monkcrypto"
+	"github.com/eris-ltd/new-thelonious/crypto"
 	"github.com/eris-ltd/thelonious/monkdb"
 	"github.com/eris-ltd/thelonious/monkutil"
 	"github.com/eris-ltd/thelonious/monkwire"
@@ -36,13 +36,13 @@ func NewClientIdentity(clientIdentifier, version, customIdentifier string) *monk
 	return monkwire.NewSimpleClientIdentity(clientIdentifier, version, customIdentifier)
 }
 
-func NewKeyManager(KeyStore string, Datadir string, db monkutil.Database) *monkcrypto.KeyManager {
-	var keyManager *monkcrypto.KeyManager
+func NewKeyManager(KeyStore string, Datadir string, db monkutil.Database) *crypto.KeyManager {
+	var keyManager *crypto.KeyManager
 	switch {
 	case KeyStore == "db":
-		keyManager = monkcrypto.NewDBKeyManager(db)
+		keyManager = crypto.NewDBKeyManager(db)
 	case KeyStore == "file":
-		keyManager = monkcrypto.NewFileKeyManager(Datadir)
+		keyManager = crypto.NewFileKeyManager(Datadir)
 	default:
 		exit(fmt.Errorf("unknown keystore type: %s", KeyStore))
 	}
