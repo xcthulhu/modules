@@ -19,11 +19,12 @@ import (
 	"github.com/eris-ltd/new-thelonious/crypto"
 	"github.com/eris-ltd/new-thelonious/doug"
 	ethevent "github.com/eris-ltd/new-thelonious/event"
-	monklog "github.com/eris-ltd/new-thelonious/logger"
+	//monklog "github.com/eris-ltd/new-thelonious/logger"
 	monkstate "github.com/eris-ltd/new-thelonious/state"
 	thelonious "github.com/eris-ltd/new-thelonious/thel"
 	"github.com/eris-ltd/new-thelonious/thelutil"
 	"github.com/eris-ltd/new-thelonious/xeth"
+	"github.com/eris-ltd/thelonious/monklog"
 )
 
 //Logging
@@ -128,6 +129,7 @@ func (mod *MonkModule) ConfigureGenesis() {
 // Gives you a pipe, local keyMang, and reactor
 // NewMonk must have been called first
 func (mod *MonkModule) Init() error {
+
 	m := mod.monk
 
 	if m == nil {
@@ -140,7 +142,7 @@ func (mod *MonkModule) Init() error {
 	// name > chainId > rootDir > default
 	mod.setRootDir()
 	logger.Infoln("Root directory ", mod.Config.RootDir)
-	mod.ConfigureGenesis()
+
 	logger.Infoln("Loaded genesis configuration from: ", mod.Config.GenesisConfig)
 
 	if !m.config.UseCheckpoint {
@@ -728,7 +730,7 @@ func (m *Monk) newThelonious() {
 	// create the thelonious obj
 	c := new(thelonious.Config)
 	m.fillConfig(c)
-	th, err := thelonious.New(c)
+	th, err := thelonious.New(c, m.genConfig)
 	//th, err := thelonious.New(db, clientIdentity, m.keyManager, thelonious.CapDefault, false, checkpoint, m.genConfig)
 
 	if err != nil {

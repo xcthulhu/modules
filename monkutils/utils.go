@@ -1,4 +1,4 @@
-package monkutils
+package thelutils
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 
 	"github.com/eris-ltd/lllc-server"
 	"github.com/eris-ltd/new-thelonious/crypto"
-	"github.com/eris-ltd/thelonious/monkdb"
-	"github.com/eris-ltd/thelonious/monkutil"
-	"github.com/eris-ltd/thelonious/monkwire"
+	"github.com/eris-ltd/new-thelonious/theldb"
+	"github.com/eris-ltd/new-thelonious/thelutil"
+	//"github.com/eris-ltd/new-thelonious/monkwire"
 )
 
 /*
@@ -17,26 +17,26 @@ import (
    ********************************
 */
 
-func NewDatabase(dbName string, mem bool) monkutil.Database {
+func NewDatabase(dbName string, mem bool) thelutil.Database {
 	if mem {
-		db, err := monkdb.NewMemDatabase()
+		db, err := theldb.NewMemDatabase()
 		if err != nil {
 			exit(err)
 		}
 		return db
 	}
-	db, err := monkdb.NewLDBDatabase(dbName)
+	db, err := theldb.NewLDBDatabase(dbName)
 	if err != nil {
 		exit(err)
 	}
 	return db
 }
 
-func NewClientIdentity(clientIdentifier, version, customIdentifier string) *monkwire.SimpleClientIdentity {
+/*func NewClientIdentity(clientIdentifier, version, customIdentifier string) *monkwire.SimpleClientIdentity {
 	return monkwire.NewSimpleClientIdentity(clientIdentifier, version, customIdentifier)
-}
+}*/
 
-func NewKeyManager(KeyStore string, Datadir string, db monkutil.Database) *crypto.KeyManager {
+func NewKeyManager(KeyStore string, Datadir string, db thelutil.Database) *crypto.KeyManager {
 	var keyManager *crypto.KeyManager
 	switch {
 	case KeyStore == "db":
@@ -66,5 +66,5 @@ func Compile(filename string) string {
 		fmt.Println("error compiling lll!", err)
 		return ""
 	}
-	return monkutil.Bytes2Hex(code)
+	return thelutil.Bytes2Hex(code)
 }
