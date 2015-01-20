@@ -8,10 +8,8 @@ import (
 	"os/user"
 	"strconv"
 
-	"github.com/eris-ltd/decerver-interfaces/core"
-	"github.com/eris-ltd/decerver-interfaces/events"
-	"github.com/eris-ltd/decerver-interfaces/modules"
 	mutils "github.com/eris-ltd/modules/monkutils"
+	"github.com/eris-ltd/modules/types"
 
 	"github.com/eris-ltd/thelonious/monkchain"
 	"github.com/eris-ltd/thelonious/monkcrypto"
@@ -34,7 +32,7 @@ var (
 //Logging
 var logger *monklog.Logger = monklog.NewLogger("GenBlock")
 
-// Implements decerver-interfaces Blockchain
+// Implements epm.Blockchain
 // strictly for using epm to launch genesis blocks
 type GenBlockModule struct {
 	Config     *ChainConfig
@@ -52,11 +50,6 @@ func NewGenBlockModule(block *monkchain.Block) *GenBlockModule {
 	}
 	g.block = block
 	return g
-}
-
-// Register the module with the decerver javascript vm
-func (mod *GenBlockModule) Register(fileIO core.FileIO, rm core.RuntimeManager, eReg events.EventRegistry) error {
-	return nil
 }
 
 // Initialize the module by setting config and key manager
@@ -121,9 +114,9 @@ func (mod *GenBlockModule) Name() string {
 */
 
 // Return the world state
-func (mod *GenBlockModule) WorldState() *modules.WorldState {
+func (mod *GenBlockModule) WorldState() *types.WorldState {
 	state := mod.block.State()
-	stateMap := &modules.WorldState{make(map[string]*modules.Account), []string{}}
+	stateMap := &types.WorldState{make(map[string]*types.Account), []string{}}
 
 	trieIterator := state.Trie.NewIterator()
 	trieIterator.Each(func(addr string, acct *monkutil.Value) {
@@ -135,9 +128,9 @@ func (mod *GenBlockModule) WorldState() *modules.WorldState {
 	return stateMap
 }
 
-func (mod *GenBlockModule) State() *modules.State {
+func (mod *GenBlockModule) State() *types.State {
 	state := mod.block.State()
-	stateMap := &modules.State{make(map[string]*modules.Storage), []string{}}
+	stateMap := &types.State{make(map[string]*types.Storage), []string{}}
 
 	trieIterator := state.Trie.NewIterator()
 	trieIterator.Each(func(addr string, acct *monkutil.Value) {
@@ -150,10 +143,10 @@ func (mod *GenBlockModule) State() *modules.State {
 }
 
 // Return the entire storage of an address
-func (mod *GenBlockModule) Storage(addr string) *modules.Storage {
+func (mod *GenBlockModule) Storage(addr string) *types.Storage {
 	state := mod.block.State()
 	obj := state.GetOrNewStateObject(monkutil.UserHex2Bytes(addr))
-	ret := &modules.Storage{make(map[string]string), []string{}}
+	ret := &types.Storage{make(map[string]string), []string{}}
 	obj.EachStorage(func(k string, v *monkutil.Value) {
 		kk := monkutil.Bytes2Hex([]byte(k))
 		vv := monkutil.Bytes2Hex(v.Bytes())
@@ -164,7 +157,7 @@ func (mod *GenBlockModule) Storage(addr string) *modules.Storage {
 }
 
 // Return the account associated with an address
-func (mod *GenBlockModule) Account(target string) *modules.Account {
+func (mod *GenBlockModule) Account(target string) *types.Account {
 	state := mod.block.State()
 	obj := state.GetOrNewStateObject(monkutil.UserHex2Bytes(target))
 
@@ -174,7 +167,7 @@ func (mod *GenBlockModule) Account(target string) *modules.Account {
 	storage := mod.Storage(target)
 	isscript := len(storage.Order) > 0 || len(script) > 0
 
-	return &modules.Account{
+	return &types.Account{
 		Address:  target,
 		Balance:  bal,
 		Nonce:    strconv.Itoa(int(nonce)),
@@ -214,7 +207,7 @@ func (mod *GenBlockModule) LatestBlock() string {
 }
 
 // Return the genesis block
-func (mod *GenBlockModule) Block(hash string) *modules.Block {
+func (mod *GenBlockModule) Block(hash string) *types.Block {
 	return convertBlock(mod.block)
 }
 
@@ -263,7 +256,7 @@ func (mod *GenBlockModule) Script(code string) (string, error) {
 }
 
 // There is nothing to subscribe to
-func (mod *GenBlockModule) Subscribe(name, event, target string) chan events.Event {
+func (mod *GenBlockModule) Subscribe(name, event, target string) chan types.Event {
 	return nil
 }
 
@@ -406,12 +399,12 @@ func homeDir() string {
 	return usr.HomeDir
 }
 
-// convert thelonious block to modules block
-func convertBlock(block *monkchain.Block) *modules.Block {
+// convert thelonious block to types block
+func convertBlock(block *monkchain.Block) *types.Block {
 	if block == nil {
 		return nil
 	}
-	b := &modules.Block{}
+	b := &types.Block{}
 	b.Coinbase = hex.EncodeToString(block.Coinbase)
 	b.Difficulty = block.Difficulty.String()
 	b.GasLimit = block.GasLimit.String()
@@ -422,7 +415,7 @@ func convertBlock(block *monkchain.Block) *modules.Block {
 	b.Number = block.Number.String()
 	b.PrevHash = hex.EncodeToString(block.PrevHash)
 	b.Time = int(block.Time)
-	txs := make([]*modules.Transaction, len(block.Transactions()))
+	txs := make([]*types.Transaction, len(block.Transactions()))
 	for idx, tx := range block.Transactions() {
 		txs[idx] = convertTx(tx)
 	}
@@ -436,9 +429,9 @@ func convertBlock(block *monkchain.Block) *modules.Block {
 	return b
 }
 
-// convert thelonious tx to modules tx
-func convertTx(monkTx *monkchain.Transaction) *modules.Transaction {
-	tx := &modules.Transaction{}
+// convert thelonious tx to types tx
+func convertTx(monkTx *monkchain.Transaction) *types.Transaction {
+	tx := &types.Transaction{}
 	tx.ContractCreation = monkTx.CreatesContract()
 	tx.Gas = monkTx.Gas.String()
 	tx.GasCost = monkTx.GasPrice.String()

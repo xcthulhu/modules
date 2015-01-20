@@ -10,13 +10,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/eris-ltd/decerver-interfaces/core"
-	"github.com/eris-ltd/decerver-interfaces/events"
-	"github.com/eris-ltd/decerver-interfaces/modules"
+	"github.com/eris-ltd/modules/types"
 
 	"github.com/eris-ltd/go-ethereum"
 	//"github.com/eris-ltd/go-ethereum/chain"
-	"github.com/eris-ltd/go-ethereum/chain/types"
+	ethtypes "github.com/eris-ltd/go-ethereum/chain/types"
 	"github.com/eris-ltd/go-ethereum/crypto"
 	"github.com/eris-ltd/go-ethereum/logger"
 	"github.com/eris-ltd/go-ethereum/xeth"
@@ -49,7 +47,7 @@ type Eth struct {
 	keyManager *crypto.KeyManager
 	//reactor    *react.ReactorEngine
 	started bool
-	chans   map[string]chan events.Event
+	chans   map[string]chan types.Event
 	//reactchans map[string]chan ethreact.Event
 }
 
@@ -76,11 +74,6 @@ func NewEth(th *eth.Ethereum) *EthModule {
 	m.started = false
 	mm.eth = m
 	return mm
-}
-
-// register the module with the decerver javascript vm
-func (mod *EthModule) Register(fileIO core.FileIO, rm core.RuntimeManager, eReg events.EventRegistry) error {
-	return nil
 }
 
 // initialize an chain
@@ -110,7 +103,7 @@ func (mod *EthModule) Init() error {
 	//m.reactor = m.ethereum.Reactor()
 
 	// subscribe to the new block
-	m.chans = make(map[string]chan events.Event)
+	m.chans = make(map[string]chan types.Event)
 	//m.reactchans = make(map[string]chan ethreact.Event)
 	m.Subscribe("newBlock", "newBlock", "")
 
@@ -155,19 +148,19 @@ func (mod *EthModule) Name() string {
    Wrapper so module satisfies Blockchain
 */
 
-func (mod *EthModule) WorldState() *modules.WorldState {
+func (mod *EthModule) WorldState() *types.WorldState {
 	return mod.eth.WorldState()
 }
 
-func (mod *EthModule) State() *modules.State {
+func (mod *EthModule) State() *types.State {
 	return mod.eth.State()
 }
 
-func (mod *EthModule) Storage(target string) *modules.Storage {
+func (mod *EthModule) Storage(target string) *types.Storage {
 	return mod.eth.Storage(target)
 }
 
-func (mod *EthModule) Account(target string) *modules.Account {
+func (mod *EthModule) Account(target string) *types.Account {
 	return mod.eth.Account(target)
 }
 
@@ -183,7 +176,7 @@ func (mod *EthModule) LatestBlock() string {
 	return mod.eth.LatestBlock()
 }
 
-func (mod *EthModule) Block(hash string) *modules.Block {
+func (mod *EthModule) Block(hash string) *types.Block {
 	return mod.eth.Block(hash)
 }
 
@@ -203,7 +196,7 @@ func (mod *EthModule) Script(code string) (string, error) {
 	return mod.eth.Script(code)
 }
 
-func (mod *EthModule) Subscribe(name, event, target string) chan events.Event {
+func (mod *EthModule) Subscribe(name, event, target string) chan types.Event {
 	return mod.eth.Subscribe(name, event, target)
 }
 
@@ -269,9 +262,9 @@ func (eth *Eth) ChainId() (string, error) {
 	return "default", nil
 }
 
-func (eth *Eth) WorldState() *modules.WorldState {
+func (eth *Eth) WorldState() *types.WorldState {
 	state := eth.pipe.World().State()
-	stateMap := &modules.WorldState{make(map[string]*modules.Account), []string{}}
+	stateMap := &types.WorldState{make(map[string]*types.Account), []string{}}
 
 	trieIterator := state.Trie.NewIterator()
 	trieIterator.Each(func(addr string, acct *ethutil.Value) {
@@ -283,9 +276,9 @@ func (eth *Eth) WorldState() *modules.WorldState {
 	return stateMap
 }
 
-func (eth *Eth) State() *modules.State {
+func (eth *Eth) State() *types.State {
 	state := eth.pipe.World().State()
-	stateMap := &modules.State{make(map[string]*modules.Storage), []string{}}
+	stateMap := &types.State{make(map[string]*types.Storage), []string{}}
 
 	trieIterator := state.Trie.NewIterator()
 	trieIterator.Each(func(addr string, acct *ethutil.Value) {
@@ -297,10 +290,10 @@ func (eth *Eth) State() *modules.State {
 	return stateMap
 }
 
-func (eth *Eth) Storage(addr string) *modules.Storage {
+func (eth *Eth) Storage(addr string) *types.Storage {
 	w := eth.pipe.World()
 	obj := w.SafeGet(ethutil.Hex2Bytes(addr)).StateObject
-	ret := &modules.Storage{make(map[string]string), []string{}}
+	ret := &types.Storage{make(map[string]string), []string{}}
 	obj.EachStorage(func(k string, v *ethutil.Value) {
 		kk := ethutil.Bytes2Hex([]byte(k))
 		vv := ethutil.Bytes2Hex(v.Bytes())
@@ -310,7 +303,7 @@ func (eth *Eth) Storage(addr string) *modules.Storage {
 	return ret
 }
 
-func (eth *Eth) Account(target string) *modules.Account {
+func (eth *Eth) Account(target string) *types.Account {
 	w := eth.pipe.World()
 	obj := w.SafeGet(ethutil.Hex2Bytes(target)).StateObject
 
@@ -320,7 +313,7 @@ func (eth *Eth) Account(target string) *modules.Account {
 	storage := eth.Storage(target)
 	isscript := len(storage.Order) > 0 || len(script) > 0
 
-	return &modules.Account{
+	return &types.Account{
 		Address:  target,
 		Balance:  bal,
 		Nonce:    strconv.Itoa(int(nonce)),
@@ -356,7 +349,7 @@ func (eth *Eth) LatestBlock() string {
 	return ethutil.Bytes2Hex(eth.ethereum.ChainManager().CurrentBlock.Hash())
 }
 
-func (eth *Eth) Block(hash string) *modules.Block {
+func (eth *Eth) Block(hash string) *types.Block {
 	hashBytes := ethutil.Hex2Bytes(hash)
 	block := eth.ethereum.ChainManager().GetBlock(hashBytes)
 	return convertBlock(block)
@@ -433,7 +426,7 @@ func (eth *Eth) Script(script string) (string, error) {
 }
 
 // returns a chanel that will fire when address is updated
-func (eth *Eth) Subscribe(name, event, target string) chan events.Event {
+func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
 	/*
 		th_ch := make(chan ethreact.Event, 1)
 		if target != "" {
@@ -726,12 +719,12 @@ func PackTxDataArgs(args ...string) string {
 	// return ret
 }
 
-// convert ethereum block to modules block
-func convertBlock(block *types.Block) *modules.Block {
+// convert ethereum block to types block
+func convertBlock(block *ethtypes.Block) *types.Block {
 	if block == nil {
 		return nil
 	}
-	b := &modules.Block{}
+	b := &types.Block{}
 	b.Coinbase = hex.EncodeToString(block.Coinbase)
 	b.Difficulty = block.Difficulty.String()
 	b.GasLimit = block.GasLimit.String()
@@ -742,7 +735,7 @@ func convertBlock(block *types.Block) *modules.Block {
 	b.Number = block.Number.String()
 	b.PrevHash = hex.EncodeToString(block.PrevHash)
 	b.Time = int(block.Time)
-	txs := make([]*modules.Transaction, len(block.Transactions()))
+	txs := make([]*types.Transaction, len(block.Transactions()))
 	for idx, tx := range block.Transactions() {
 		txs[idx] = convertTx(tx)
 	}
@@ -756,9 +749,9 @@ func convertBlock(block *types.Block) *modules.Block {
 	return b
 }
 
-// convert ethereum tx to modules tx
-func convertTx(ethTx *types.Transaction) *modules.Transaction {
-	tx := &modules.Transaction{}
+// convert ethereum tx to types tx
+func convertTx(ethTx *ethtypes.Transaction) *types.Transaction {
+	tx := &types.Transaction{}
 	tx.ContractCreation = ethTx.CreatesContract()
 	tx.Gas = ethTx.Gas.String()
 	tx.GasCost = ethTx.GasPrice.String()

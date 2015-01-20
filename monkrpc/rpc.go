@@ -9,10 +9,8 @@ import (
 	"os/user"
 	"strconv"
 
-	"github.com/eris-ltd/decerver-interfaces/core"
-	"github.com/eris-ltd/decerver-interfaces/events"
-	"github.com/eris-ltd/decerver-interfaces/modules"
 	mutils "github.com/eris-ltd/modules/monkutils"
+	"github.com/eris-ltd/modules/types"
 
 	"github.com/eris-ltd/thelonious/monkchain"
 	"github.com/eris-ltd/thelonious/monkcrypto"
@@ -34,7 +32,7 @@ const (
 
 var logger *monklog.Logger = monklog.NewLogger("MonkRpc")
 
-// Implements decerver-interfaces Blockchain
+// Implements epm.Blockchain
 type MonkRpcModule struct {
 	Config     *RpcConfig
 	client     *rpc.Client
@@ -46,11 +44,6 @@ func NewMonkRpcModule() *MonkRpcModule {
 	g := new(MonkRpcModule)
 	g.Config = DefaultConfig
 	return g
-}
-
-// Register the module with the decerver javascript vm
-func (mod *MonkRpcModule) Register(fileIO core.FileIO, rm core.RuntimeManager, eReg events.EventRegistry) error {
-	return nil
 }
 
 // Initialize the module by setting config and key manager
@@ -118,21 +111,21 @@ func (mod *MonkRpcModule) Name() string {
 */
 
 // Return the world state
-func (mod *MonkRpcModule) WorldState() *modules.WorldState {
+func (mod *MonkRpcModule) WorldState() *types.WorldState {
 	return nil
 }
 
-func (mod *MonkRpcModule) State() *modules.State {
+func (mod *MonkRpcModule) State() *types.State {
 	return nil
 }
 
 // Return the entire storage of an address
-func (mod *MonkRpcModule) Storage(addr string) *modules.Storage {
+func (mod *MonkRpcModule) Storage(addr string) *types.Storage {
 	return nil
 }
 
 // Return the account associated with an address
-func (mod *MonkRpcModule) Account(target string) *modules.Account {
+func (mod *MonkRpcModule) Account(target string) *types.Account {
 	return nil
 }
 
@@ -156,7 +149,7 @@ func (mod *MonkRpcModule) LatestBlock() string {
 	return ""
 }
 
-func (mod *MonkRpcModule) Block(hash string) *modules.Block {
+func (mod *MonkRpcModule) Block(hash string) *types.Block {
 	args := monkrpc.GetBlockArgs{Hash: hash}
 	var res *string
 	err := mod.client.Call("TheloniousApi.GetBlock", args, res)
@@ -229,7 +222,7 @@ func (mod *MonkRpcModule) Script(scriptHex string) (string, error) {
 }
 
 // There is nothing to subscribe to
-func (mod *MonkRpcModule) Subscribe(name, event, target string) chan events.Event {
+func (mod *MonkRpcModule) Subscribe(name, event, target string) chan types.Event {
 	return nil
 }
 
@@ -335,12 +328,12 @@ func homeDir() string {
 	return usr.HomeDir
 }
 
-// convert thelonious block to modules block
-func convertBlock(block *monkchain.Block) *modules.Block {
+// convert thelonious block to types block
+func convertBlock(block *monkchain.Block) *types.Block {
 	if block == nil {
 		return nil
 	}
-	b := &modules.Block{}
+	b := &types.Block{}
 	b.Coinbase = hex.EncodeToString(block.Coinbase)
 	b.Difficulty = block.Difficulty.String()
 	b.GasLimit = block.GasLimit.String()
@@ -351,7 +344,7 @@ func convertBlock(block *monkchain.Block) *modules.Block {
 	b.Number = block.Number.String()
 	b.PrevHash = hex.EncodeToString(block.PrevHash)
 	b.Time = int(block.Time)
-	txs := make([]*modules.Transaction, len(block.Transactions()))
+	txs := make([]*types.Transaction, len(block.Transactions()))
 	for idx, tx := range block.Transactions() {
 		txs[idx] = convertTx(tx)
 	}
@@ -365,9 +358,9 @@ func convertBlock(block *monkchain.Block) *modules.Block {
 	return b
 }
 
-// convert thelonious tx to modules tx
-func convertTx(monkTx *monkchain.Transaction) *modules.Transaction {
-	tx := &modules.Transaction{}
+// convert thelonious tx to types tx
+func convertTx(monkTx *monkchain.Transaction) *types.Transaction {
+	tx := &types.Transaction{}
 	tx.ContractCreation = monkTx.CreatesContract()
 	tx.Gas = monkTx.Gas.String()
 	tx.GasCost = monkTx.GasPrice.String()
