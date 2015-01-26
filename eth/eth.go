@@ -27,6 +27,11 @@ var ( // error?!
 		Current()
 )
 
+var (
+	GAS      = "10000"
+	GASPRICE = "500"
+)
+
 //Logging
 var ethlogger *logger.Logger = logger.NewLogger("EthGlue")
 
@@ -47,8 +52,10 @@ type Eth struct {
 	eventMux    *ethevent.TypeMux
 	started     bool
 	chans       map[string]chan types.Event
-	reactchans  map[string]<-chan interface{}
+	subscribers map[string]ethevent.Subscription // <-chan interface{}
 	newBlockSub ethevent.Subscription
+
+	miner *miner.Miner
 }
 
 /*
@@ -104,7 +111,7 @@ func (mod *EthModule) Init() error {
 
 	// subscribe to the new block
 	m.chans = make(map[string]chan types.Event)
-	m.reactchans = make(map[string]<-chan interface{})
+	m.subscribers = make(map[string]ethevent.Subscription) //<-chan interface{})
 	//m.Subscribe("newBlock", "newBlock", "")
 	//m.newBlockSub = m.eventMux.Subscribe(core.NewBlockEvent{})
 
@@ -114,7 +121,11 @@ func (mod *EthModule) Init() error {
 // start the ethereum node
 func (mod *EthModule) Start() error {
 	m := mod.eth
-	m.ethereum.Start(m.config.UseSeed) // peer seed
+	seed := ""
+	if m.config.UseSeed {
+		seed = m.config.SeedAddr
+	}
+	m.ethereum.Start(seed) // peer seed
 	m.started = true
 
 	if m.config.Mining {
@@ -249,7 +260,7 @@ func (mod *EthModule) AddressCount() int {
 */
 
 func (mod *EthModule) EthState() *state.StateDB {
-	return mod.eth.pipe.World().State()
+	return mod.eth.pipe.State().State()
 }
 
 /*
@@ -262,7 +273,7 @@ func (eth *Eth) ChainId() (string, error) {
 }
 
 func (eth *Eth) WorldState() *types.WorldState {
-	state := eth.pipe.World().State()
+	state := eth.pipe.State().State()
 	stateMap := &types.WorldState{make(map[string]*types.Account), []string{}}
 
 	it := state.Trie().Iterator()
@@ -278,7 +289,7 @@ func (eth *Eth) WorldState() *types.WorldState {
 }
 
 func (eth *Eth) State() *types.State {
-	state := eth.pipe.World().State()
+	state := eth.pipe.State().State()
 	stateMap := &types.State{make(map[string]*types.Storage), []string{}}
 
 	it := state.Trie().Iterator()
@@ -294,8 +305,8 @@ func (eth *Eth) State() *types.State {
 }
 
 func (eth *Eth) Storage(addr string) *types.Storage {
-	w := eth.pipe.World()
-	obj := w.SafeGet(ethutil.Hex2Bytes(addr)).StateObject
+	w := eth.pipe.State()
+	obj := w.SafeGet(addr).StateObject
 	ret := &types.Storage{make(map[string]string), []string{}}
 	obj.EachStorage(func(k string, v *ethutil.Value) {
 		kk := ethutil.Bytes2Hex([]byte(k))
@@ -307,8 +318,8 @@ func (eth *Eth) Storage(addr string) *types.Storage {
 }
 
 func (eth *Eth) Account(target string) *types.Account {
-	w := eth.pipe.World()
-	obj := w.SafeGet(ethutil.Hex2Bytes(target)).StateObject
+	w := eth.pipe.State()
+	obj := w.SafeGet(target).StateObject
 
 	bal := ethutil.NewValue(obj.Balance).String()
 	nonce := obj.Nonce
@@ -335,9 +346,8 @@ func (eth *Eth) StorageAt(contract_addr string, storage_addr string) string {
 	}
 
 	//contract_addr = ethutil.StripHex(contract_addr)
-	caddr := ethutil.Hex2Bytes(contract_addr)
-	w := eth.pipe.World()
-	ret := w.SafeGet(caddr).GetStorage(saddr)
+	w := eth.pipe.State()
+	ret := w.SafeGet(contract_addr).GetStorage(saddr)
 	if ret.IsNil() {
 		return ""
 	}
@@ -370,34 +380,37 @@ func (eth *Eth) IsScript(target string) bool {
 
 // send a tx
 func (eth *Eth) Tx(addr, amt string) (string, error) {
-	keys := eth.fetchKeyPair()
+	//keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
 	if addr[:2] == "0x" {
 		addr = addr[2:]
 	}
-	byte_addr := ethutil.Hex2Bytes(addr)
 	// note, NewValue will not turn a string int into a big int..
 	start := time.Now()
-	tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("20000000000")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
+	//tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("200")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
+	tx, err := eth.pipe.Transact(addr, amt, GAS, GASPRICE, "")
 	dif := time.Since(start)
 	fmt.Println("pipe tx took ", dif)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(tx.Hash()), nil
+	return tx, nil
 }
 
 // send a message to a contract
 func (eth *Eth) Msg(addr string, data []string) (string, error) {
+	abi := data[0]
+	data = data[1:]
 	packed := PackTxDataArgs(data...)
-	keys := eth.fetchKeyPair()
+	packed = abi + packed[2:]
+	fmt.Println("PACKED:", packed)
+	//keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
-	byte_addr := ethutil.Hex2Bytes(addr)
-	tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big("350")), ethutil.NewValue(ethutil.Big("200000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(packed))
+	tx, err := eth.pipe.Transact(addr, "0", GAS, GASPRICE, packed)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(tx.Hash()), nil
+	return tx, nil
 }
 
 // TODO: implement CompileLLL
@@ -418,14 +431,13 @@ func (eth *Eth) Script(script string) (string, error) {
 	}*/
 	// messy key system...
 	// chain should have an 'active key'
-	keys := eth.fetchKeyPair()
+	//keys := eth.fetchKeyPair()
 
-	// well isn't this pretty! barf
-	tx, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("200000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
+	addr, err := eth.pipe.Transact("", "0", GAS, GASPRICE, script)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(core.AddressFromMessage(tx)), nil
+	return addr, nil
 }
 
 // returns a chanel that will fire when address is updated
@@ -442,7 +454,7 @@ func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
 
 	ch := make(chan types.Event)
 	eth.chans[name] = ch
-	eth.reactchans[name] = th_ch
+	eth.subscribers[name] = subscriber
 
 	// fire up a goroutine and broadcast module specific chan on our main chan
 	go func() {
@@ -483,26 +495,23 @@ func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
 }
 
 func (eth *Eth) UnSubscribe(name string) {
-	/*
-		if c, ok := eth.reactchans[name]; ok {
-			close(c)
-			delete(eth.reactchans, name)
-		}
-		if c, ok := eth.chans[name]; ok {
-			close(c)
-			delete(eth.chans, name)
-		}*/
+	if c, ok := eth.subscribers[name]; ok {
+		c.Unsubscribe()
+		delete(eth.subscribers, name)
+	}
+	if c, ok := eth.chans[name]; ok {
+		close(c)
+		delete(eth.chans, name)
+	}
 }
 
 // Mine a block
 func (m *Eth) Commit() {
+	c := m.eventMux.Subscribe(core.NewBlockEvent{})
 	m.StartMining()
-	//_ = <-m.chans["newBlock"]
-	_ = <-m.newBlockSub.Chan()
-	v := false
-	for !v {
-		v = m.StopMining()
-	}
+	_ = <-c.Chan()
+	m.StopMining()
+	c.Unsubscribe()
 }
 
 // start and stop continuous mining
@@ -636,11 +645,37 @@ func (eth *Eth) GenDoug() string {
 }*/
 
 func (eth *Eth) StartMining() bool {
-	return StartMining(eth.ethereum)
+	if !eth.ethereum.Mining {
+		eth.ethereum.Mining = true
+		addr := eth.ethereum.KeyManager().Address()
+
+		go func() {
+			ethlogger.Infoln("Start mining")
+			// Give it some time to connect with peers
+			time.Sleep(3 * time.Second)
+			if eth.miner == nil {
+				eth.miner = miner.New(addr, eth.ethereum)
+			}
+			eth.miner.Start()
+		}()
+		RegisterInterrupt(func(os.Signal) {
+			eth.StopMining()
+		})
+		return true
+
+	}
+	return false
 }
 
 func (eth *Eth) StopMining() bool {
-	return StopMining(eth.ethereum)
+	if eth.ethereum.Mining && eth.miner != nil {
+		eth.miner.Stop()
+		ethlogger.Infoln("Stopped mining")
+		eth.ethereum.Mining = false
+		eth.miner = nil
+		return true
+	}
+	return false
 }
 
 func (eth *Eth) StartListening() {
