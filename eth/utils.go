@@ -142,15 +142,6 @@ func NewEthereum(db ethutil.Database, clientIdentity wire.ClientIdentity, keyMan
 	return ethereum
 }*/
 
-func StartEthereum(ethereum *eth.Ethereum, UseSeed bool) {
-	ethlogger.Infof("Starting %s", ethereum.ClientIdentity())
-	ethereum.Start(UseSeed)
-	RegisterInterrupt(func(sig os.Signal) {
-		ethereum.Stop()
-		logger.Flush()
-	})
-}
-
 func ShowGenesis(ethereum *eth.Ethereum) {
 	ethlogger.Infoln(ethereum.ChainManager().Genesis())
 	exit(nil)
