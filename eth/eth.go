@@ -401,12 +401,12 @@ func (eth *Eth) Tx(addr, amt string) (string, error) {
 }
 
 // send a message to a contract
+// data is prepacked by epm
 func (eth *Eth) Msg(addr string, data []string) (string, error) {
-	abi := data[0]
-	data = data[1:]
-	packed := PackTxDataArgs(data...)
-	packed = abi + packed[2:]
-	fmt.Println("PACKED:", packed)
+	packed := data[0]
+	//packed := PackTxDataArgs(data...)
+	//packed = abi + packed[2:]
+	//fmt.Println("PACKED:", packed)
 	//keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
 	tx, err := eth.pipe.Transact(addr, "0", GAS, GASPRICE, packed)
