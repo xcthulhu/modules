@@ -61,7 +61,7 @@ func exit(err error) {
 // compile LLL file into evm bytecode
 // returns hex
 func Compile(filename string) string {
-	code, err := lllcserver.Compile(filename)
+	code, _, err := lllcserver.Compile(filename)
 	if err != nil {
 		fmt.Println("error compiling lll!", err)
 		return ""
