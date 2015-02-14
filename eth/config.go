@@ -22,7 +22,6 @@ type ChainConfig struct {
 	RootDir          string `json:"root_dir"`
 	LogFile          string `json:"log_file"`
 	DbName           string `json:"db_name"`
-	LLLPath          string `json:"lll_path"`
 	ContractPath     string `json:"contract_path"`
 	ClientIdentifier string `json:"client"`
 	Version          string `json:"version"`
@@ -33,21 +32,21 @@ type ChainConfig struct {
 	KeyFile          string `json:"key_file"`
 	Difficulty       string `json:"difficulty"`
 	LogLevel         int    `json:"log_level"`
+	UseSeed          bool   `json:"use_seed"`
+	SeedAddr         string `json:"seed_address"`
 	Adversary        int    `json:"adversary"`
 }
 
 // set default config object
 var DefaultConfig = &ChainConfig{
-	Port:       30303,
-	Mining:     false,
-	MaxPeers:   10,
-	ConfigFile: "config",
-	RootDir:    path.Join(usr.HomeDir, ".ethchain"),
-	DbName:     "database",
-	KeySession: "generous",
-	LogFile:    "",
-	//LLLPath: path.Join(homeDir(), "cpp-ethereum/build/lllc/lllc"),
-	LLLPath:          "NETCALL",
+	Port:             30303,
+	Mining:           false,
+	MaxPeers:         10,
+	ConfigFile:       "config",
+	RootDir:          path.Join(usr.HomeDir, ".ethchain"),
+	DbName:           "database",
+	KeySession:       "generous",
+	LogFile:          "",
 	ContractPath:     path.Join(ErisLtd, "eris-std-lib"),
 	ClientIdentifier: "EthGlue",
 	Version:          "2.7.1",
@@ -55,7 +54,9 @@ var DefaultConfig = &ChainConfig{
 	KeyStore:         "file",
 	KeyCursor:        0,
 	KeyFile:          path.Join(ErisLtd, "decerver-interfaces", "glue", "eth", "keys.txt"),
-	LogLevel:         5,
+	LogLevel:         2,
+	UseSeed:          false,
+	SeedAddr:         "",
 	Adversary:        0,
 }
 
@@ -107,10 +108,6 @@ func (mod *EthModule) SetConfigObj(config interface{}) error {
 //  copy keys if they are available, and setup logging
 func (eth *Eth) ethConfig() {
 	cfg := eth.config
-	// set lll path
-	if cfg.LLLPath != "" {
-		//ethutil.PathToLLL = cfg.LLLPath
-	}
 
 	// check on data dir
 	// create keys
@@ -127,7 +124,7 @@ func (eth *Eth) ethConfig() {
 	ethutil.Config = &ethutil.ConfigManager{ExecPath: cfg.RootDir, Debug: true, Paranoia: true}
 	// data dir, logfile, log level, debug file
 	// TODO: enhance this with more pkg level control
-	InitLogging(cfg.RootDir, cfg.LogFile, cfg.LogLevel, "")
+	//InitLogging(cfg.RootDir, cfg.LogFile, cfg.LogLevel, "")
 }
 
 // Set a field in the config struct.

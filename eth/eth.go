@@ -12,20 +12,27 @@ import (
 
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/go-ethereum"
-	//"github.com/eris-ltd/go-ethereum/chain"
-	ethtypes "github.com/eris-ltd/go-ethereum/chain/types"
+	ethutils "github.com/eris-ltd/go-ethereum/cmd/utils"
+	"github.com/eris-ltd/go-ethereum/core"
+	ethtypes "github.com/eris-ltd/go-ethereum/core/types"
 	"github.com/eris-ltd/go-ethereum/crypto"
-	"github.com/eris-ltd/go-ethereum/logger"
-	"github.com/eris-ltd/go-ethereum/xeth"
-	//"github.com/eris-ltd/go-ethereum/react"
+	"github.com/eris-ltd/go-ethereum/eth"
 	"github.com/eris-ltd/go-ethereum/ethutil"
+	ethevent "github.com/eris-ltd/go-ethereum/event"
+	"github.com/eris-ltd/go-ethereum/logger"
+	"github.com/eris-ltd/go-ethereum/miner"
 	"github.com/eris-ltd/go-ethereum/state"
+	"github.com/eris-ltd/go-ethereum/xeth"
 )
 
 var (
 	GoPath = os.Getenv("GOPATH")
 	usr, _ = user.Current() // error?!
+)
+
+var (
+	GAS      = "10000"
+	GASPRICE = "500"
 )
 
 //Logging
@@ -41,14 +48,17 @@ type EthModule struct {
 // this will get passed to Otto (javascript vm)
 // as such, it does not have "administrative" methods
 type Eth struct {
-	config     *ChainConfig
-	ethereum   *eth.Ethereum
-	pipe       *xeth.XEth
-	keyManager *crypto.KeyManager
-	//reactor    *react.ReactorEngine
-	started bool
-	chans   map[string]chan types.Event
-	//reactchans map[string]chan ethreact.Event
+	config      *ChainConfig
+	ethereum    *eth.Ethereum
+	pipe        *xeth.XEth
+	keyManager  *crypto.KeyManager
+	eventMux    *ethevent.TypeMux
+	started     bool
+	chans       map[string]chan types.Event
+	subscribers map[string]ethevent.Subscription // <-chan interface{}
+	newBlockSub ethevent.Subscription
+
+	miner *miner.Miner
 }
 
 /*
@@ -100,14 +110,13 @@ func (mod *EthModule) Init() error {
 
 	m.pipe = pipe
 	m.keyManager = m.ethereum.KeyManager()
-	//m.reactor = m.ethereum.Reactor()
+	m.eventMux = m.ethereum.EventMux()
 
 	// subscribe to the new block
 	m.chans = make(map[string]chan types.Event)
-	//m.reactchans = make(map[string]chan ethreact.Event)
-	m.Subscribe("newBlock", "newBlock", "")
-
-	log.Println(m.ethereum.Port)
+	m.subscribers = make(map[string]ethevent.Subscription) //<-chan interface{})
+	//m.Subscribe("newBlock", "newBlock", "")
+	//m.newBlockSub = m.eventMux.Subscribe(core.NewBlockEvent{})
 
 	return nil
 }
@@ -115,11 +124,15 @@ func (mod *EthModule) Init() error {
 // start the ethereum node
 func (mod *EthModule) Start() error {
 	m := mod.eth
-	m.ethereum.Start(true) // peer seed
+	seed := ""
+	if m.config.UseSeed {
+		seed = m.config.SeedAddr
+	}
+	m.ethereum.Start(seed) // peer seed
 	m.started = true
 
 	if m.config.Mining {
-		StartMining(m.ethereum)
+		ethutils.StartMining(m.ethereum)
 	}
 	return nil
 }
@@ -249,8 +262,8 @@ func (mod *EthModule) AddressCount() int {
     in standalone applications, testing, and debuging
 */
 
-func (mod *EthModule) EthState() *state.State {
-	return mod.eth.pipe.World().State()
+func (mod *EthModule) EthState() *state.StateDB {
+	return mod.eth.pipe.State().State()
 }
 
 /*
@@ -263,36 +276,40 @@ func (eth *Eth) ChainId() (string, error) {
 }
 
 func (eth *Eth) WorldState() *types.WorldState {
-	state := eth.pipe.World().State()
+	state := eth.pipe.State().State()
 	stateMap := &types.WorldState{make(map[string]*types.Account), []string{}}
 
-	trieIterator := state.Trie.NewIterator()
-	trieIterator.Each(func(addr string, acct *ethutil.Value) {
+	it := state.Trie().Iterator()
+	for it.Next() { //(func(addr string, acct *ethutil.Value) {
+		addr := it.Key
+		//acct := it.Value
 		hexAddr := ethutil.Bytes2Hex([]byte(addr))
 		stateMap.Order = append(stateMap.Order, hexAddr)
 		stateMap.Accounts[hexAddr] = eth.Account(hexAddr)
 
-	})
+	}
 	return stateMap
 }
 
 func (eth *Eth) State() *types.State {
-	state := eth.pipe.World().State()
+	state := eth.pipe.State().State()
 	stateMap := &types.State{make(map[string]*types.Storage), []string{}}
 
-	trieIterator := state.Trie.NewIterator()
-	trieIterator.Each(func(addr string, acct *ethutil.Value) {
+	it := state.Trie().Iterator()
+	for it.Next() { //(func(addr string, acct *ethutil.Value) {
+		addr := it.Key
+		//acct := it.Value
 		hexAddr := ethutil.Bytes2Hex([]byte(addr))
 		stateMap.Order = append(stateMap.Order, hexAddr)
 		stateMap.State[hexAddr] = eth.Storage(hexAddr)
 
-	})
+	}
 	return stateMap
 }
 
 func (eth *Eth) Storage(addr string) *types.Storage {
-	w := eth.pipe.World()
-	obj := w.SafeGet(ethutil.Hex2Bytes(addr)).StateObject
+	w := eth.pipe.State()
+	obj := w.SafeGet(addr).StateObject
 	ret := &types.Storage{make(map[string]string), []string{}}
 	obj.EachStorage(func(k string, v *ethutil.Value) {
 		kk := ethutil.Bytes2Hex([]byte(k))
@@ -304,8 +321,8 @@ func (eth *Eth) Storage(addr string) *types.Storage {
 }
 
 func (eth *Eth) Account(target string) *types.Account {
-	w := eth.pipe.World()
-	obj := w.SafeGet(ethutil.Hex2Bytes(target)).StateObject
+	w := eth.pipe.State()
+	obj := w.SafeGet(target).StateObject
 
 	bal := ethutil.NewValue(obj.Balance).String()
 	nonce := obj.Nonce
@@ -332,9 +349,8 @@ func (eth *Eth) StorageAt(contract_addr string, storage_addr string) string {
 	}
 
 	//contract_addr = ethutil.StripHex(contract_addr)
-	caddr := ethutil.Hex2Bytes(contract_addr)
-	w := eth.pipe.World()
-	ret := w.SafeGet(caddr).GetStorage(saddr)
+	w := eth.pipe.State()
+	ret := w.SafeGet(contract_addr).GetStorage(saddr)
 	if ret.IsNil() {
 		return ""
 	}
@@ -342,11 +358,11 @@ func (eth *Eth) StorageAt(contract_addr string, storage_addr string) string {
 }
 
 func (eth *Eth) BlockCount() int {
-	return int(eth.ethereum.ChainManager().LastBlockNumber)
+	return int(eth.ethereum.ChainManager().LastBlockNumber())
 }
 
 func (eth *Eth) LatestBlock() string {
-	return ethutil.Bytes2Hex(eth.ethereum.ChainManager().CurrentBlock.Hash())
+	return ethutil.Bytes2Hex(eth.ethereum.ChainManager().CurrentBlock().Hash())
 }
 
 func (eth *Eth) Block(hash string) *types.Block {
@@ -367,34 +383,37 @@ func (eth *Eth) IsScript(target string) bool {
 
 // send a tx
 func (eth *Eth) Tx(addr, amt string) (string, error) {
-	keys := eth.fetchKeyPair()
+	//keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
 	if addr[:2] == "0x" {
 		addr = addr[2:]
 	}
-	byte_addr := ethutil.Hex2Bytes(addr)
 	// note, NewValue will not turn a string int into a big int..
 	start := time.Now()
-	hash, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("20000000000")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
+	//tx, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big(amt)), ethutil.NewValue(ethutil.Big("200")), ethutil.NewValue(ethutil.Big("100000")), []byte(""))
+	tx, err := eth.pipe.Transact(addr, amt, GAS, GASPRICE, "")
 	dif := time.Since(start)
 	fmt.Println("pipe tx took ", dif)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(hash), nil
+	return tx, nil
 }
 
 // send a message to a contract
+// data is prepacked by epm
 func (eth *Eth) Msg(addr string, data []string) (string, error) {
-	packed := PackTxDataArgs(data...)
-	keys := eth.fetchKeyPair()
+	packed := data[0]
+	//packed := PackTxDataArgs(data...)
+	//packed = abi + packed[2:]
+	//fmt.Println("PACKED:", packed)
+	//keys := eth.fetchKeyPair()
 	//addr = ethutil.StripHex(addr)
-	byte_addr := ethutil.Hex2Bytes(addr)
-	hash, err := eth.pipe.Transact(keys, byte_addr, ethutil.NewValue(ethutil.Big("350")), ethutil.NewValue(ethutil.Big("200000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(packed))
+	tx, err := eth.pipe.Transact(addr, "0", GAS, GASPRICE, packed)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(hash), nil
+	return tx, nil
 }
 
 // TODO: implement CompileLLL
@@ -415,48 +434,53 @@ func (eth *Eth) Script(script string) (string, error) {
 	}*/
 	// messy key system...
 	// chain should have an 'active key'
-	keys := eth.fetchKeyPair()
+	//keys := eth.fetchKeyPair()
 
-	// well isn't this pretty! barf
-	contract_addr, err := eth.pipe.Transact(keys, nil, ethutil.NewValue(ethutil.Big("271")), ethutil.NewValue(ethutil.Big("2000000000000")), ethutil.NewValue(ethutil.Big("1000000")), []byte(script))
+	addr, err := eth.pipe.Transact("", "0", GAS, GASPRICE, script)
 	if err != nil {
 		return "", err
 	}
-	return ethutil.Bytes2Hex(contract_addr), nil
+	return addr, nil
 }
 
 // returns a chanel that will fire when address is updated
 func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
-	/*
-		th_ch := make(chan ethreact.Event, 1)
-		if target != "" {
-			addr := string(ethutil.Hex2Bytes(target))
-			eth.reactor.Subscribe("object:"+addr, th_ch)
-		} else {
-			eth.reactor.Subscribe(event, th_ch)
-		}
+	var eventObj interface{}
+	var subscriber ethevent.Subscription
+	switch event {
+	case "newBlock":
+		eventObj = core.NewBlockEvent{}
+		subscriber = eth.eventMux.Subscribe(eventObj)
+	}
 
-		ch := make(chan events.Event)
-		eth.chans[name] = ch
-		eth.reactchans[name] = th_ch
+	th_ch := subscriber.Chan()
 
-		// fire up a goroutine and broadcast module specific chan on our main chan
-		go func() {
-			for {
-				eve, more := <-th_ch
-				if !more {
-					break
-				}
-				returnEvent := events.Event{
-					Event:     event,
-					Target:    target,
-					Source:    "eth",
-					TimeStamp: time.Now(),
-				}
-				// cast resource to appropriate type
+	ch := make(chan types.Event)
+	eth.chans[name] = ch
+	eth.subscribers[name] = subscriber
+
+	// fire up a goroutine and broadcast module specific chan on our main chan
+	go func() {
+		for {
+			eve, more := <-th_ch
+			if !more {
+				break
+			}
+			returnEvent := types.Event{
+				Event:     event,
+				Target:    target,
+				Source:    "eth",
+				TimeStamp: time.Now(),
+			}
+			switch eve := eve.(type) {
+			case core.NewBlockEvent:
+				block := eve.Block
+				returnEvent.Resource = convertBlock(block)
+			case core.TxPreEvent:
+			}
+			// cast resource to appropriate type
+			/*
 				resource := eve.Resource
-				if block, ok := resource.(*chain.Block); ok {
-					returnEvent.Resource = convertBlock(block)
 				} else if tx, ok := resource.(chain.Transaction); ok {
 					returnEvent.Resource = convertTx(&tx)
 				} else if txFail, ok := resource.(chain.TxFail); ok {
@@ -465,35 +489,32 @@ func (eth *Eth) Subscribe(name, event, target string) chan types.Event {
 					returnEvent.Resource = tx
 				} else {
 					ethlogger.Errorln("Invalid event resource type", resource)
-				}
-				ch <- returnEvent
-			}
-		}()
-		return ch
-	*/
+				}*/
+			ch <- returnEvent
+		}
+	}()
+	return ch
 	return nil
 }
 
 func (eth *Eth) UnSubscribe(name string) {
-	/*
-		if c, ok := eth.reactchans[name]; ok {
-			close(c)
-			delete(eth.reactchans, name)
-		}
-		if c, ok := eth.chans[name]; ok {
-			close(c)
-			delete(eth.chans, name)
-		}*/
+	if c, ok := eth.subscribers[name]; ok {
+		c.Unsubscribe()
+		delete(eth.subscribers, name)
+	}
+	if c, ok := eth.chans[name]; ok {
+		close(c)
+		delete(eth.chans, name)
+	}
 }
 
 // Mine a block
 func (m *Eth) Commit() {
+	c := m.eventMux.Subscribe(core.NewBlockEvent{})
 	m.StartMining()
-	_ = <-m.chans["newBlock"]
-	v := false
-	for !v {
-		v = m.StopMining()
-	}
+	_ = <-c.Chan()
+	m.StopMining()
+	c.Unsubscribe()
 }
 
 // start and stop continuous mining
@@ -589,19 +610,35 @@ func (m *Eth) newEthereum() {
 	}
 	m.keyManager = keyManager
 
-	clientIdentity := NewClientIdentity(m.config.ClientIdentifier, m.config.Version, m.config.Identifier)
+	c := new(eth.Config)
+	m.fillConfig(c)
 
 	// create the ethereum obj
-	th, err := eth.New(db, clientIdentity, m.keyManager, eth.CapDefault, false)
+	//th, err := eth.New(db, clientIdentity, m.keyManager, eth.CapDefault, false)
+	th, err := eth.New(c)
 
 	if err != nil {
 		log.Fatal("Could not start node: %s\n", err)
 	}
 
-	th.Port = strconv.Itoa(m.config.Port)
-	th.MaxPeers = m.config.MaxPeers
-
 	m.ethereum = th
+}
+
+func (m *Eth) fillConfig(c *eth.Config) {
+	c.Port = strconv.Itoa(m.config.Port)
+	//c.Name = m.config.
+	c.Version = m.config.Version
+	c.Identifier = m.config.ClientIdentifier
+	c.KeyStore = m.config.KeyStore
+	c.DataDir = m.config.RootDir
+	c.LogFile = m.config.LogFile
+	c.LogLevel = m.config.LogLevel
+	c.KeyRing = m.config.KeySession
+	c.MaxPeers = m.config.MaxPeers
+	//c.NATType =
+	//c.PMPGateway
+	c.Shh = false
+	c.Dial = false
 }
 
 // returns hex addr of gendoug
@@ -611,11 +648,37 @@ func (eth *Eth) GenDoug() string {
 }*/
 
 func (eth *Eth) StartMining() bool {
-	return StartMining(eth.ethereum)
+	if !eth.ethereum.Mining {
+		eth.ethereum.Mining = true
+		addr := eth.ethereum.KeyManager().Address()
+
+		go func() {
+			ethlogger.Infoln("Start mining")
+			// Give it some time to connect with peers
+			time.Sleep(3 * time.Second)
+			if eth.miner == nil {
+				eth.miner = miner.New(addr, eth.ethereum)
+			}
+			eth.miner.Start()
+		}()
+		RegisterInterrupt(func(os.Signal) {
+			eth.StopMining()
+		})
+		return true
+
+	}
+	return false
 }
 
 func (eth *Eth) StopMining() bool {
-	return StopMining(eth.ethereum)
+	if eth.ethereum.Mining && eth.miner != nil {
+		eth.miner.Stop()
+		ethlogger.Infoln("Stopped mining")
+		eth.ethereum.Mining = false
+		eth.miner = nil
+		return true
+	}
+	return false
 }
 
 func (eth *Eth) StartListening() {
@@ -725,25 +788,25 @@ func convertBlock(block *ethtypes.Block) *types.Block {
 		return nil
 	}
 	b := &types.Block{}
-	b.Coinbase = hex.EncodeToString(block.Coinbase)
-	b.Difficulty = block.Difficulty.String()
-	b.GasLimit = block.GasLimit.String()
-	b.GasUsed = block.GasUsed.String()
+	b.Coinbase = hex.EncodeToString(block.Coinbase())
+	b.Difficulty = block.Difficulty().String()
+	b.GasLimit = block.GasLimit().String()
+	b.GasUsed = block.GasUsed().String()
 	b.Hash = hex.EncodeToString(block.Hash())
-	b.MinGasPrice = block.MinGasPrice.String()
-	b.Nonce = hex.EncodeToString(block.Nonce)
-	b.Number = block.Number.String()
-	b.PrevHash = hex.EncodeToString(block.PrevHash)
-	b.Time = int(block.Time)
+	//b.MinGasPrice = block.MinGasPrice.String()
+	b.Nonce = hex.EncodeToString(block.Nonce())
+	b.Number = block.Number().String()
+	b.PrevHash = hex.EncodeToString(block.ParentHash())
+	b.Time = int(block.Time())
 	txs := make([]*types.Transaction, len(block.Transactions()))
 	for idx, tx := range block.Transactions() {
 		txs[idx] = convertTx(tx)
 	}
 	b.Transactions = txs
-	b.TxRoot = hex.EncodeToString(block.TxSha)
-	b.UncleRoot = hex.EncodeToString(block.UncleSha)
-	b.Uncles = make([]string, len(block.Uncles))
-	for idx, u := range block.Uncles {
+	b.TxRoot = hex.EncodeToString(block.TxHash())
+	b.UncleRoot = hex.EncodeToString(block.UncleHash())
+	b.Uncles = make([]string, len(block.Uncles()))
+	for idx, u := range block.Uncles() {
 		b.Uncles[idx] = hex.EncodeToString(u.Hash())
 	}
 	return b
@@ -752,13 +815,13 @@ func convertBlock(block *ethtypes.Block) *types.Block {
 // convert ethereum tx to types tx
 func convertTx(ethTx *ethtypes.Transaction) *types.Transaction {
 	tx := &types.Transaction{}
-	tx.ContractCreation = ethTx.CreatesContract()
-	tx.Gas = ethTx.Gas.String()
-	tx.GasCost = ethTx.GasPrice.String()
+	tx.ContractCreation = ethtypes.IsContractAddr(ethTx.To())
+	tx.Gas = ethTx.Gas().String()
+	tx.GasCost = ethTx.GasPrice().String()
 	tx.Hash = hex.EncodeToString(ethTx.Hash())
 	tx.Nonce = fmt.Sprintf("%d", ethTx.Nonce)
-	tx.Recipient = hex.EncodeToString(ethTx.Recipient)
-	tx.Sender = hex.EncodeToString(ethTx.Sender())
-	tx.Value = ethTx.Value.String()
+	tx.Recipient = hex.EncodeToString(ethTx.To())
+	tx.Sender = hex.EncodeToString(ethTx.From())
+	tx.Value = ethTx.Value().String()
 	return tx
 }
