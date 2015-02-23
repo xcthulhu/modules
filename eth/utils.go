@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"time"
 
-	"bitbucket.org/kardianos/osext"
+	"github.com/kardianos/osext"
 	eth "github.com/eris-ltd/go-ethereum"
 	"github.com/eris-ltd/go-ethereum/crypto"
 	"github.com/eris-ltd/go-ethereum/ethdb"
