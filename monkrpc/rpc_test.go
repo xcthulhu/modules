@@ -1,8 +1,8 @@
 package monkrpc
 
 import (
-	"github.com/eris-ltd/thelonious/monk"
-	"github.com/eris-ltd/thelonious/monkdoug"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monk"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkdoug"
 	"log"
 	"testing"
 	"time"

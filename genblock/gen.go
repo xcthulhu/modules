@@ -11,16 +11,17 @@ import (
 	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/thelonious/monkchain"
-	"github.com/eris-ltd/thelonious/monkcrypto"
-	"github.com/eris-ltd/thelonious/monkdoug"
-	"github.com/eris-ltd/thelonious/monklog"
-	"github.com/eris-ltd/thelonious/monkutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkchain"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkcrypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkdoug"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monklog"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkutil"
 )
 
 var (
-	GoPath = os.Getenv("GOPATH")
-	usr, _ = user.Current() // error?!
+	GoPath    = os.Getenv("GOPATH")
+	usr, _    = user. // error?!
+	Current()
 )
 
 // This is a dead simple blockchain module for deploying genesis blocks from epm

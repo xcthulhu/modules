@@ -1,0 +1,24 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - "sudo apt-get update && sudo apt-get install -y libgmp3-dev"
+    - rm -rf ~/.go_workspace
+
+  override:
+    - go build -a -race -work -x -v
+
+test:
+  override:
+    - go test -v ./... -race
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - "cd ~ && git clone https://github.com/eris-ltd/epm-go && cd epm-go/cmd/epm && go get -d -v ./... && go build -a -race -work -x -v"
+      - "cd ~/epm-go && docker build -t eris/erisdb:thel_build_unstable ."
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push eris/erisdb:thel_build_unstable

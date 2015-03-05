@@ -12,15 +12,14 @@ import (
 	mutils "github.com/eris-ltd/modules/monkutils"
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/thelonious/monkchain"
-	"github.com/eris-ltd/thelonious/monkcrypto"
-	"github.com/eris-ltd/thelonious/monklog"
-	"github.com/eris-ltd/thelonious/monkrpc"
-	"github.com/eris-ltd/thelonious/monkutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkchain"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkcrypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monklog"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkrpc"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkutil"
 )
 
-// Some defaults because we are bad ;)
-const (
+const ( // Some defaults because we are bad ;)
 	VALUE    = "10"
 	GAS      = "100000"
 	GASPRICE = "100000"

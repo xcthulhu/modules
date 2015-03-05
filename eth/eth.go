@@ -12,20 +12,19 @@ import (
 
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/go-ethereum"
-	//"github.com/eris-ltd/go-ethereum/chain"
-	ethtypes "github.com/eris-ltd/go-ethereum/chain/types"
-	"github.com/eris-ltd/go-ethereum/crypto"
-	"github.com/eris-ltd/go-ethereum/logger"
-	"github.com/eris-ltd/go-ethereum/xeth"
-	//"github.com/eris-ltd/go-ethereum/react"
-	"github.com/eris-ltd/go-ethereum/ethutil"
-	"github.com/eris-ltd/go-ethereum/state"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum"
+	ethtypes "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/chain/types" //"github.com/eris-ltd/go-ethereum/chain"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/state"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/xeth"
 )
 
-var (
-	GoPath = os.Getenv("GOPATH")
-	usr, _ = user.Current() // error?!
+var ( // error?!
+	GoPath    = os.Getenv("GOPATH")
+	usr, _    = user. //"github.com/eris-ltd/go-ethereum/react"
+	Current()
 )
 
 //Logging

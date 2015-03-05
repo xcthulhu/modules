@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/eris-ltd/epm-go/utils"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/epm-go/utils"
 	"io/ioutil"
 	"os"
 	"path"
