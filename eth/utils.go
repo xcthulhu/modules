@@ -12,20 +12,20 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/kardianos/osext"
-	eth "github.com/eris-ltd/go-ethereum"
-	"github.com/eris-ltd/go-ethereum/crypto"
-	"github.com/eris-ltd/go-ethereum/ethdb"
-	"github.com/eris-ltd/go-ethereum/logger"
-	"github.com/eris-ltd/go-ethereum/miner"
+	eth "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethdb"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/miner"
+
 	//"github.com/eris-ltd/go-ethereum/xeth"
 	//"github.com/eris-ltd/go-ethereum/monkrpc"
-	"github.com/eris-ltd/go-ethereum/ethutil"
-	"github.com/eris-ltd/go-ethereum/wire"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/wire"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/kardianos/osext"
 )
 
 // this is basically go-etheruem/utils
-
 // i think for now we only use StartMining, but there's porbably other goodies...
 
 //var logger = logger.NewLogger("CLI")

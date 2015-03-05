@@ -12,9 +12,9 @@ import (
 
 	"github.com/eris-ltd/modules/types"
 
-	rpc "github.com/conformal/btcrpcclient"
-	"github.com/conformal/btcutil"
-	"github.com/conformal/btcwire"
+	rpc "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/conformal/btcrpcclient"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/conformal/btcutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/conformal/btcwire"
 )
 
 type BTC struct {

@@ -8,15 +8,16 @@ import (
 	"os/user"
 	_ "strconv"
 
-	"github.com/eris-ltd/thelonious/monkchain"
-	"github.com/eris-ltd/thelonious/monkcrypto"
-	"github.com/eris-ltd/thelonious/monkrpc"
-	"github.com/eris-ltd/thelonious/monkutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkchain"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkcrypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkrpc"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkutil"
 )
 
 var (
-	GoPath = os.Getenv("GOPATH")
-	usr, _ = user.Current() // error?!
+	GoPath    = os.Getenv("GOPATH")
+	usr, _    = user. // error?!
+	Current()
 )
 
 // A tx to be signed by a local daemon
