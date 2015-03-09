@@ -351,7 +351,7 @@ func (eth *Eth) StorageAt(contract_addr string, storage_addr string) string {
 
 	//contract_addr = ethutil.StripHex(contract_addr)
 	w := eth.pipe.State()
-	ret := w.SafeGet(contract_addr).GetStorage(saddr)
+	ret := w.SafeGet(utils.StripHex(contract_addr)).GetStorage(saddr)
 	if ret.IsNil() {
 		return ""
 	}
