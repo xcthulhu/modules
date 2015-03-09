@@ -17,8 +17,6 @@
 /**
  * @authors
  * 	Jeffrey Wilcke <i@jev.io>
- * @date 2014
- *
  */
 
 package main
@@ -32,19 +30,21 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/core"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/core/types"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethdb"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/state"
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/trie"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/vm"
 )
 
 var (
 	code     = flag.String("code", "", "evm code")
 	loglevel = flag.Int("log", 4, "log level")
-	gas      = flag.String("gas", "1000000", "gas amount")
+	gas      = flag.String("gas", "1000000000", "gas amount")
 	price    = flag.String("price", "0", "gas price")
+	value    = flag.String("value", "0", "tx value")
 	dump     = flag.Bool("dump", false, "dump state after run")
 	data     = flag.String("data", "", "data")
 )
@@ -59,15 +59,20 @@ func main() {
 
 	logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.LogLevel(*loglevel)))
 
-	ethutil.ReadConfig("/tm/evmtest", "/tmp/evm", "")
+	ethutil.ReadConfig("/tmp/evmtest", "/tmp/evm", "")
 
-	stateObject := state.NewStateObject([]byte("evmuser"))
-	closure := vm.NewClosure(nil, stateObject, stateObject, ethutil.Hex2Bytes(*code), ethutil.Big(*gas), ethutil.Big(*price))
+	db, _ := ethdb.NewMemDatabase()
+	statedb := state.New(nil, db)
+	sender := statedb.NewStateObject([]byte("sender"))
+	receiver := statedb.NewStateObject([]byte("receiver"))
+	//receiver.SetCode([]byte(*code))
+	receiver.SetCode(ethutil.Hex2Bytes(*code))
+
+	vmenv := NewEnv(statedb, []byte("evmuser"), ethutil.Big(*value))
 
 	tstart := time.Now()
 
-	env := NewVmEnv()
-	ret, _, e := closure.Call(vm.New(env, vm.DebugVmTy), ethutil.Hex2Bytes(*data))
+	ret, e := vmenv.Call(sender, receiver.Address(), ethutil.Hex2Bytes(*data), ethutil.Big(*gas), ethutil.Big(*price), ethutil.Big(*value))
 
 	logger.Flush()
 	if e != nil {
@@ -75,7 +80,7 @@ func main() {
 	}
 
 	if *dump {
-		fmt.Println(string(env.state.Dump()))
+		fmt.Println(string(statedb.Dump()))
 	}
 
 	var mem runtime.MemStats
@@ -92,26 +97,70 @@ num gc:     %d
 	fmt.Printf("%x\n", ret)
 }
 
-type VmEnv struct {
-	state *state.State
+type VMEnv struct {
+	state *state.StateDB
+	block *types.Block
+
+	transactor []byte
+	value      *big.Int
+
+	depth int
+	Gas   *big.Int
+	time  int64
 }
 
-func NewVmEnv() *VmEnv {
-	db, _ := ethdb.NewMemDatabase()
-	return &VmEnv{state.New(trie.New(db, ""))}
+func NewEnv(state *state.StateDB, transactor []byte, value *big.Int) *VMEnv {
+	return &VMEnv{
+		state:      state,
+		transactor: transactor,
+		value:      value,
+		time:       time.Now().Unix(),
+	}
 }
 
-func (VmEnv) Origin() []byte            { return nil }
-func (VmEnv) BlockNumber() *big.Int     { return nil }
-func (VmEnv) BlockHash() []byte         { return nil }
-func (VmEnv) PrevHash() []byte          { return nil }
-func (VmEnv) Coinbase() []byte          { return nil }
-func (VmEnv) Time() int64               { return 0 }
-func (VmEnv) GasLimit() *big.Int        { return nil }
-func (VmEnv) Difficulty() *big.Int      { return nil }
-func (VmEnv) Value() *big.Int           { return nil }
-func (self *VmEnv) State() *state.State { return self.state }
-func (VmEnv) AddLog(*state.Log)         {}
-func (VmEnv) Transfer(from, to vm.Account, amount *big.Int) error {
+func (self *VMEnv) State() *state.StateDB { return self.state }
+func (self *VMEnv) Origin() []byte        { return self.transactor }
+func (self *VMEnv) BlockNumber() *big.Int { return ethutil.Big0 }
+func (self *VMEnv) PrevHash() []byte      { return make([]byte, 32) }
+func (self *VMEnv) Coinbase() []byte      { return self.transactor }
+func (self *VMEnv) Time() int64           { return self.time }
+func (self *VMEnv) Difficulty() *big.Int  { return ethutil.Big1 }
+func (self *VMEnv) BlockHash() []byte     { return make([]byte, 32) }
+func (self *VMEnv) Value() *big.Int       { return self.value }
+func (self *VMEnv) GasLimit() *big.Int    { return big.NewInt(1000000000) }
+func (self *VMEnv) VmType() vm.Type       { return vm.StdVmTy }
+func (self *VMEnv) Depth() int            { return 0 }
+func (self *VMEnv) SetDepth(i int)        { self.depth = i }
+func (self *VMEnv) GetHash(n uint64) []byte {
+	if self.block.Number().Cmp(big.NewInt(int64(n))) == 0 {
+		return self.block.Hash()
+	}
 	return nil
+}
+func (self *VMEnv) AddLog(log state.Log) {
+	self.state.AddLog(log)
+}
+func (self *VMEnv) Transfer(from, to vm.Account, amount *big.Int) error {
+	return vm.Transfer(from, to, amount)
+}
+
+func (self *VMEnv) vm(addr, data []byte, gas, price, value *big.Int) *core.Execution {
+	return core.NewExecution(self, addr, data, gas, price, value)
+}
+
+func (self *VMEnv) Call(caller vm.ContextRef, addr, data []byte, gas, price, value *big.Int) ([]byte, error) {
+	exe := self.vm(addr, data, gas, price, value)
+	ret, err := exe.Call(addr, caller)
+	self.Gas = exe.Gas
+
+	return ret, err
+}
+func (self *VMEnv) CallCode(caller vm.ContextRef, addr, data []byte, gas, price, value *big.Int) ([]byte, error) {
+	exe := self.vm(caller.Address(), data, gas, price, value)
+	return exe.Call(addr, caller)
+}
+
+func (self *VMEnv) Create(caller vm.ContextRef, addr, data []byte, gas, price, value *big.Int) ([]byte, error, vm.ContextRef) {
+	exe := self.vm(addr, data, gas, price, value)
+	return exe.Create(caller)
 }

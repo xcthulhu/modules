@@ -3,8 +3,8 @@ package crypto
 import (
 	"strings"
 
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto/secp256k1"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/obscuren/secp256k1-go"
 )
 
 type KeyPair struct {

@@ -1,24 +1,19 @@
-module.exports = {
-  blockgenesis: require('./BasicTests/blockgenesistest'),
-  genesishashes: require('./BasicTests/genesishashestest'),
-  hexencode: require('./BasicTests/hexencodetest'),
-  keyaddrtests: require('./BasicTests/keyaddrtest'),
-  rlptest: require('./BasicTests/rlptest'),
-  trietest: require('./TrieTests/trietest'),
-  trietestnextprev: require('./TrieTests/trietestnextprev'),
-  txtest: require('./BasicTests/txtest'),
-  StateTests: {
-    stPreCompiledContracts: require('./StateTests/stPreCompiledContracts'),
-    stSystemOperationsTest: require('./StateTests/stSystemOperationsTest'),
+var tests = module.exports = {};
+
+Object.defineProperties(tests, {
+  blockchainTests: {
+    get: require('require-all').bind(this, __dirname + '/BlockchainTests')
   },
-  VMTests: {
-    vmArithmeticTest: require('./VMTests/vmArithmeticTest'),
-    vmBitwiseLogicOperationTest: require('./VMTests/vmBitwiseLogicOperationTest'),
-    vmBlockInfoTest: require('./VMTests/vmBlockInfoTest'),
-    vmEnvironmentalInfoTest: require('./VMTests/vmEnvironmentalInfoTest'),
-    vmIOandFlowOperationsTest: require('./VMTests/vmIOandFlowOperationsTest'),
-    vmPushDupSwapTest: require('./VMTests/vmPushDupSwapTest'),
-    vmSha3Test: require('./VMTests/vmSha3Test'),
-    vmtestst: require('./VMTests/vmtests'),
+  basicTests: {
+    get: require('require-all').bind(this, __dirname + '/BasicTests/')
+  },
+  trieTests: {
+    get: require('require-all').bind(this, __dirname + '/TrieTests/')
+  },
+  stateTests: {
+    get: require('require-all').bind(this, __dirname + '/StateTests/')
+  },
+  vmTests: {
+    get: require('require-all').bind(this, __dirname + '/VMTests')
   }
-};
+});

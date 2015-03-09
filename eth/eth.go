@@ -12,11 +12,15 @@ import (
 
 	"github.com/eris-ltd/modules/types"
 
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum"
-	ethtypes "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/chain/types" //"github.com/eris-ltd/go-ethereum/chain"
+	ethutils "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/cmd/utils"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/core"
+	ethtypes "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/core/types" //"github.com/eris-ltd/go-ethereum/chain"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/eth"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
+	ethevent "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/event"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/miner"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/state"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/xeth"
 )

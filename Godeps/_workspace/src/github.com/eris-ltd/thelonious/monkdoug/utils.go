@@ -29,7 +29,7 @@ var (
 // creates tx but does not sign!
 func NewContract(scriptFile string) (*monkchain.Transaction, error) {
 	// if mutan, load the script. else, pass file name
-	script, err := lllcserver.Compile(scriptFile)
+	script, _, err := lllcserver.Compile(scriptFile)
 	if err != nil {
 		fmt.Println("failed compile", err)
 		return nil, err

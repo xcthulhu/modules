@@ -66,8 +66,12 @@ func (c *CompileClient) Compile(dir string, code []byte) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// fill in cached values, cache new values
 	if err := c.cacheFile(respJ.Bytecode, hash); err != nil {
+		return nil, err
+	}
+	if err := c.cacheFile([]byte(respJ.ABI), hash+"-abi"); err != nil {
 		return nil, err
 	}
 
@@ -75,14 +79,14 @@ func (c *CompileClient) Compile(dir string, code []byte) (*Response, error) {
 }
 
 // create a new compiler for the language and compile the code
-func compile(code []byte, lang, dir string) ([]byte, error) {
+func compile(code []byte, lang, dir string) ([]byte, string, error) {
 	c, err := NewCompileClient(lang)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	r, err := c.Compile(dir, code)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	b := r.Bytecode
 	if r.Error != "" {
@@ -90,21 +94,21 @@ func compile(code []byte, lang, dir string) ([]byte, error) {
 	} else {
 		err = nil
 	}
-	return b, err
+	return b, r.ABI, err
 }
 
 // Compile a file and resolve includes
-func Compile(filename string) ([]byte, error) {
+func Compile(filename string) ([]byte, string, error) {
 	lang, err := LangFromFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	logger.Infoln("lang:", lang)
 
 	code, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 
 	}
 	dir := path.Dir(filename)
@@ -112,6 +116,6 @@ func Compile(filename string) ([]byte, error) {
 }
 
 // Compile a literal piece of code
-func CompileLiteral(code string, lang string) ([]byte, error) {
+func CompileLiteral(code string, lang string) ([]byte, string, error) {
 	return compile([]byte(code), lang, utils.Scratch)
 }

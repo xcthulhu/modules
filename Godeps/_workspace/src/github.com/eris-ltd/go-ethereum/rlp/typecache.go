@@ -1,22 +1,23 @@
 package rlp
 
 import (
-	"fmt"
-	"math/big"
 	"reflect"
 	"sync"
 )
-
-type decoder func(*Stream, reflect.Value) error
-
-type typeinfo struct {
-	decoder
-}
 
 var (
 	typeCacheMutex sync.RWMutex
 	typeCache      = make(map[reflect.Type]*typeinfo)
 )
+
+type typeinfo struct {
+	decoder
+	writer
+}
+
+type decoder func(*Stream, reflect.Value) error
+
+type writer func(reflect.Value, *encbuf) error
 
 func cachedTypeInfo(typ reflect.Type) (*typeinfo, error) {
 	typeCacheMutex.RLock()
@@ -51,41 +52,30 @@ func cachedTypeInfo1(typ reflect.Type) (*typeinfo, error) {
 	return typeCache[typ], err
 }
 
-var (
-	decoderInterface = reflect.TypeOf(new(Decoder)).Elem()
-	bigInt           = reflect.TypeOf(big.Int{})
-)
+func structFields(typ reflect.Type) (fields []field, err error) {
+	for i := 0; i < typ.NumField(); i++ {
+		if f := typ.Field(i); f.PkgPath == "" { // exported
+			info, err := cachedTypeInfo1(f.Type)
+			if err != nil {
+				return nil, err
+			}
+			fields = append(fields, field{i, info})
+		}
+	}
+	return fields, nil
+}
 
 func genTypeInfo(typ reflect.Type) (info *typeinfo, err error) {
 	info = new(typeinfo)
-	kind := typ.Kind()
-	switch {
-	case typ.Implements(decoderInterface):
-		info.decoder = decodeDecoder
-	case kind != reflect.Ptr && reflect.PtrTo(typ).Implements(decoderInterface):
-		info.decoder = decodeDecoderNoPtr
-	case typ.AssignableTo(reflect.PtrTo(bigInt)):
-		info.decoder = decodeBigInt
-	case typ.AssignableTo(bigInt):
-		info.decoder = decodeBigIntNoPtr
-	case isInteger(kind):
-		info.decoder = makeNumDecoder(typ)
-	case kind == reflect.String:
-		info.decoder = decodeString
-	case kind == reflect.Slice || kind == reflect.Array:
-		info.decoder, err = makeListDecoder(typ)
-	case kind == reflect.Struct:
-		info.decoder, err = makeStructDecoder(typ)
-	case kind == reflect.Ptr:
-		info.decoder, err = makePtrDecoder(typ)
-	case kind == reflect.Interface && typ.NumMethod() == 0:
-		info.decoder = decodeInterface
-	default:
-		err = fmt.Errorf("rlp: type %v is not RLP-serializable", typ)
+	if info.decoder, err = makeDecoder(typ); err != nil {
+		return nil, err
 	}
-	return info, err
+	if info.writer, err = makeWriter(typ); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func isInteger(k reflect.Kind) bool {
-	return k >= reflect.Int && k <= reflect.Uintptr
+func isUint(k reflect.Kind) bool {
+	return k >= reflect.Uint && k <= reflect.Uintptr
 }

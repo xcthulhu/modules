@@ -59,7 +59,7 @@ const (
 const (
 
 	// 0x40 range - block operations
-	PREVHASH OpCode = 0x40 + iota
+	BLOCKHASH OpCode = 0x40 + iota
 	COINBASE
 	TIMESTAMP
 	NUMBER
@@ -163,8 +163,8 @@ const (
 	// 0xf0 range - closures
 	CREATE OpCode = 0xf0 + iota
 	CALL
-	RETURN
 	CALLCODE
+	RETURN
 
 	// 0x70 range - other
 	SUICIDE = 0xff
@@ -216,7 +216,7 @@ var opCodeToString = map[OpCode]string{
 	GASPRICE:     "TXGASPRICE",
 
 	// 0x40 range - block operations
-	PREVHASH:    "PREVHASH",
+	BLOCKHASH:   "BLOCKHASH",
 	COINBASE:    "COINBASE",
 	TIMESTAMP:   "TIMESTAMP",
 	NUMBER:      "NUMBER",
@@ -308,12 +308,11 @@ var opCodeToString = map[OpCode]string{
 	SWAP14: "SWAP14",
 	SWAP15: "SWAP15",
 	SWAP16: "SWAP16",
-
-	LOG0: "LOG0",
-	LOG1: "LOG1",
-	LOG2: "LOG2",
-	LOG3: "LOG3",
-	LOG4: "LOG4",
+	LOG0:   "LOG0",
+	LOG1:   "LOG1",
+	LOG2:   "LOG2",
+	LOG3:   "LOG3",
+	LOG4:   "LOG4",
 
 	// 0xf0 range
 	CREATE:   "CREATE",

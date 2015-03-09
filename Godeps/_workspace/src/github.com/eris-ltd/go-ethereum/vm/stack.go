@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 )
 
@@ -91,6 +90,12 @@ func (st *Stack) Get(amount *big.Int) []*big.Int {
 	return nil
 }
 
+func (st *Stack) require(n int) {
+	if st.Len() < n {
+		panic(fmt.Sprintf("stack underflow (%d <=> %d)", st.Len(), n))
+	}
+}
+
 func (st *Stack) Print() {
 	fmt.Println("### stack ###")
 	if len(st.data) > 0 {
@@ -111,10 +116,10 @@ func NewMemory() *Memory {
 	return &Memory{nil}
 }
 
-func (m *Memory) Set(offset, size int64, value []byte) {
+func (m *Memory) Set(offset, size uint64, value []byte) {
 	if len(value) > 0 {
 		totSize := offset + size
-		lenSize := int64(len(m.store) - 1)
+		lenSize := uint64(len(m.store) - 1)
 		if totSize > lenSize {
 			// Calculate the diff between the sizes
 			diff := totSize - lenSize
@@ -135,21 +140,14 @@ func (m *Memory) Resize(size uint64) {
 	}
 }
 
-func (m *Memory) Get(offset, size int64) []byte {
-	if len(m.store) > int(offset) {
-		end := int(math.Min(float64(len(m.store)), float64(offset+size)))
-
-		return m.store[offset:end]
+func (self *Memory) Get(offset, size int64) (cpy []byte) {
+	if size == 0 {
+		return nil
 	}
 
-	return nil
-}
-
-func (self *Memory) Geti(offset, size int64) (cpy []byte) {
 	if len(self.store) > int(offset) {
-		s := int64(math.Min(float64(len(self.store)), float64(offset+size)))
 		cpy = make([]byte, size)
-		copy(cpy, self.store[offset:offset+s])
+		copy(cpy, self.store[offset:offset+size])
 
 		return
 	}

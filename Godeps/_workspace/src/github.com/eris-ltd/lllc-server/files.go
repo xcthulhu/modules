@@ -119,7 +119,9 @@ func (c *CompileClient) cachedResponse(hash string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewResponse(b, nil), nil
+	f = path.Join(ClientCache, c.Ext(hash+"-abi"))
+	abi, _ := ioutil.ReadFile(f)
+	return NewResponse(b, string(abi), nil), nil
 }
 
 // cache a file to disk
@@ -131,6 +133,27 @@ func (c *CompileClient) cacheFile(b []byte, hash string) error {
 		}
 	}
 	return nil
+}
+
+// check cache for server
+func checkCache(hash []byte) (*Response, error) {
+	f := path.Join(ClientCache, hex.EncodeToString(hash))
+	if _, err := os.Stat(f); err == nil {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		f += "-abi"
+		abi, _ := ioutil.ReadFile(f)
+		return NewResponse(b, string(abi), nil), nil
+	}
+	return nil, fmt.Errorf("Not cached")
+}
+
+func cacheResult(hash, compiled []byte, docs string) {
+	f := path.Join(ClientCache, hex.EncodeToString(hash))
+	ioutil.WriteFile(f, compiled, 0600)
+	ioutil.WriteFile(f+"-abi", []byte(docs), 0600)
 }
 
 // Get language from filename extension

@@ -25,6 +25,7 @@ type LangConfig struct {
 	IncludeRegexes  []string   `json:"regexes"`
 	IncludeReplaces [][]string `json:"replaces"`
 	CompileCmd      []string   `json:"cmd"`
+	AbiCmd          []string   `json:"abi"`
 }
 
 // Append the language extension to the filename
@@ -36,6 +37,22 @@ func (l LangConfig) Ext(h string) string {
 func (l LangConfig) Cmd(file string) (prgrm string, args []string) {
 	prgrm = l.CompileCmd[0]
 	for _, s := range l.CompileCmd[1:] {
+		if s == "_" {
+			args = append(args, file)
+		} else {
+			args = append(args, s)
+		}
+	}
+	return
+}
+
+func (l LangConfig) Abi(file string) (prgm string, args []string) {
+	if len(l.AbiCmd) < 2 {
+		return "", []string{}
+	}
+
+	prgm = l.AbiCmd[0]
+	for _, s := range l.AbiCmd[1:] {
 		if s == "_" {
 			args = append(args, file)
 		} else {
@@ -82,6 +99,11 @@ var Languages = map[string]LangConfig{
 		CompileCmd: []string{
 			"/usr/local/bin/serpent",
 			"compile",
+			"_",
+		},
+		AbiCmd: []string{
+			"/usr/local/bin/serpent",
+			"mk_full_signature",
 			"_",
 		},
 	},

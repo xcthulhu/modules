@@ -5,9 +5,11 @@ import (
 
 	//"code.google.com/p/go.crypto/sha3"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/code.google.com/p/go.crypto/ripemd160"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto/secp256k1"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto/sha3"
+	//"github.com/eris-ltd/thelonious/Godeps/_workspace/src/github.com/obscuren/secp256k1-go"
+	//"github.com/eris-ltd/thelonious/Godeps/_workspace/src/github.com/obscuren/sha3"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/thelonious/monkutil"
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/obscuren/secp256k1-go"
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/obscuren/sha3"
 )
 
 func Sha3Bin(data []byte) []byte {

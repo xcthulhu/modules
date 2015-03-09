@@ -97,17 +97,17 @@
 		},
 		{
 			"ImportPath": "github.com/eris-ltd/go-ethereum",
-			"Comment": "v0.6.8-1318-gaa115b0",
-			"Rev": "aa115b0e05ba6b8f21792f52dde8cbacf1ce5229"
+			"Comment": "v0.6.8-2206-g04792dc",
+			"Rev": "04792dcd67cb6d1118acbdf5eec8da1c2fd9ce3f"
 		},
 		{
 			"ImportPath": "github.com/eris-ltd/lllc-server",
-			"Rev": "77f9b910c9c668d1db5028e40f815187d521e48e"
+			"Rev": "355eb16193b1479bcb7b3575b9508a9823558d4a"
 		},
 		{
 			"ImportPath": "github.com/eris-ltd/thelonious",
-			"Comment": "v0.8-62-g30ed9c5",
-			"Rev": "30ed9c5f5d6d26d1692ab073b09d37bab3d9bff0"
+			"Comment": "v0.8-66-g2d4c88e",
+			"Rev": "2d4c88e0084c31cea2cefea5cad1c86ffcd97eb6"
 		},
 		{
 			"ImportPath": "github.com/go-martini/martini",

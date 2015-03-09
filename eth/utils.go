@@ -12,8 +12,8 @@ import (
 	"runtime"
 	"time"
 
-	eth "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/crypto"
+	eth "github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/eth"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethdb"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
@@ -21,7 +21,7 @@ import (
 
 	//"github.com/eris-ltd/go-ethereum/xeth"
 	//"github.com/eris-ltd/go-ethereum/monkrpc"
-	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/wire"
+	//"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/wire"
 	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/kardianos/osext"
 )
 

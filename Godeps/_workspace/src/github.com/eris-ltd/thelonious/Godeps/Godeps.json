@@ -45,6 +45,16 @@
 			"Rev": "f8a20d79836909f18aa969c7149aa339221662f4"
 		},
 		{
+			"ImportPath": "github.com/eris-ltd/go-ethereum/crypto/secp256k1",
+			"Comment": "v0.6.8-2206-g04792dc",
+			"Rev": "04792dcd67cb6d1118acbdf5eec8da1c2fd9ce3f"
+		},
+		{
+			"ImportPath": "github.com/eris-ltd/go-ethereum/crypto/sha3",
+			"Comment": "v0.6.8-2206-g04792dc",
+			"Rev": "04792dcd67cb6d1118acbdf5eec8da1c2fd9ce3f"
+		},
+		{
 			"ImportPath": "github.com/eris-ltd/lllc-server",
 			"Rev": "77f9b910c9c668d1db5028e40f815187d521e48e"
 		},

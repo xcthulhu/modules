@@ -1,135 +1,267 @@
 package vm
 
-// import (
-// 	"bytes"
-// 	"testing"
+import (
+	"bytes"
+	"math/big"
+	"strconv"
+	"testing"
 
-// 	"github.com/eris-ltd/go-ethereum/ethutil"
-// 	"github.com/eris-ltd/go-ethereum/state"
-// 	"github.com/eris-ltd/go-ethereum/tests/helper"
-// )
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/core/types"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethdb"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/ethutil"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/logger"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/state"
+	"github.com/eris-ltd/modules/Godeps/_workspace/src/github.com/eris-ltd/go-ethereum/tests/helper"
+)
 
-// type Account struct {
-// 	Balance string
-// 	Code    string
-// 	Nonce   string
-// 	Storage map[string]string
-// }
+type Account struct {
+	Balance string
+	Code    string
+	Nonce   string
+	Storage map[string]string
+}
 
-// func StateObjectFromAccount(addr string, account Account) *state.StateObject {
-// 	obj := state.NewStateObject(ethutil.Hex2Bytes(addr))
-// 	obj.SetBalance(ethutil.Big(account.Balance))
+type Log struct {
+	AddressF string   `json:"address"`
+	DataF    string   `json:"data"`
+	TopicsF  []string `json:"topics"`
+	BloomF   string   `json:"bloom"`
+}
 
-// 	if ethutil.IsHex(account.Code) {
-// 		account.Code = account.Code[2:]
-// 	}
-// 	obj.Code = ethutil.Hex2Bytes(account.Code)
-// 	obj.Nonce = ethutil.Big(account.Nonce).Uint64()
+func (self Log) Address() []byte      { return ethutil.Hex2Bytes(self.AddressF) }
+func (self Log) Data() []byte         { return ethutil.Hex2Bytes(self.DataF) }
+func (self Log) RlpData() interface{} { return nil }
+func (self Log) Topics() [][]byte {
+	t := make([][]byte, len(self.TopicsF))
+	for i, topic := range self.TopicsF {
+		t[i] = ethutil.Hex2Bytes(topic)
+	}
+	return t
+}
 
-// 	return obj
-// }
+func StateObjectFromAccount(db ethutil.Database, addr string, account Account) *state.StateObject {
+	obj := state.NewStateObject(ethutil.Hex2Bytes(addr), db)
+	obj.SetBalance(ethutil.Big(account.Balance))
 
-// type VmTest struct {
-// 	Callcreates interface{}
-// 	Env         map[string]string
-// 	Exec        map[string]string
-// 	Gas         string
-// 	Out         string
-// 	Post        map[string]Account
-// 	Pre         map[string]Account
-// }
+	if ethutil.IsHex(account.Code) {
+		account.Code = account.Code[2:]
+	}
+	obj.Code = ethutil.Hex2Bytes(account.Code)
+	obj.Nonce = ethutil.Big(account.Nonce).Uint64()
 
-// func RunVmTest(p string, t *testing.T) {
-// 	tests := make(map[string]VmTest)
-// 	helper.CreateFileTests(t, p, &tests)
+	return obj
+}
 
-// 	for name, test := range tests {
-// 		state := state.New(helper.NewTrie())
-// 		for addr, account := range test.Pre {
-// 			obj := StateObjectFromAccount(addr, account)
-// 			state.SetStateObject(obj)
-// 		}
+type Env struct {
+	CurrentCoinbase   string
+	CurrentDifficulty string
+	CurrentGasLimit   string
+	CurrentNumber     string
+	CurrentTimestamp  interface{}
+	PreviousHash      string
+}
 
-// 		ret, gas, err := helper.RunVm(state, test.Env, test.Exec)
-// 		// When an error is returned it doesn't always mean the tests fails.
-// 		// Have to come up with some conditional failing mechanism.
-// 		if err != nil {
-// 			t.Errorf("%s", err)
-// 			helper.Log.Infoln(err)
-// 		}
+type VmTest struct {
+	Callcreates interface{}
+	//Env         map[string]string
+	Env         Env
+	Exec        map[string]string
+	Transaction map[string]string
+	Logs        []Log
+	Gas         string
+	Out         string
+	Post        map[string]Account
+	Pre         map[string]Account
+}
 
-// 		rexp := helper.FromHex(test.Out)
-// 		if bytes.Compare(rexp, ret) != 0 {
-// 			t.Errorf("%s's return failed. Expected %x, got %x\n", name, rexp, ret)
-// 		}
+func RunVmTest(p string, t *testing.T) {
+	tests := make(map[string]VmTest)
+	helper.CreateFileTests(t, p, &tests)
 
-// 		gexp := ethutil.Big(test.Gas)
-// 		if gexp.Cmp(gas) != 0 {
-// 			t.Errorf("%s's gas failed. Expected %v, got %v\n", name, gexp, gas)
-// 		}
+	for name, test := range tests {
+		helper.Logger.SetLogLevel(4)
+		if name != "TransactionNonceCheck2" {
+			continue
+		}
+		db, _ := ethdb.NewMemDatabase()
+		statedb := state.New(nil, db)
+		for addr, account := range test.Pre {
+			obj := StateObjectFromAccount(db, addr, account)
+			statedb.SetStateObject(obj)
+			for a, v := range account.Storage {
+				obj.SetState(helper.FromHex(a), ethutil.NewValue(helper.FromHex(v)))
+			}
+		}
 
-// 		for addr, account := range test.Post {
-// 			obj := state.GetStateObject(helper.FromHex(addr))
-// 			for addr, value := range account.Storage {
-// 				v := obj.GetState(helper.FromHex(addr)).Bytes()
-// 				vexp := helper.FromHex(value)
+		// XXX Yeah, yeah...
+		env := make(map[string]string)
+		env["currentCoinbase"] = test.Env.CurrentCoinbase
+		env["currentDifficulty"] = test.Env.CurrentDifficulty
+		env["currentGasLimit"] = test.Env.CurrentGasLimit
+		env["currentNumber"] = test.Env.CurrentNumber
+		env["previousHash"] = test.Env.PreviousHash
+		if n, ok := test.Env.CurrentTimestamp.(float64); ok {
+			env["currentTimestamp"] = strconv.Itoa(int(n))
+		} else {
+			env["currentTimestamp"] = test.Env.CurrentTimestamp.(string)
+		}
 
-// 				if bytes.Compare(v, vexp) != 0 {
-// 					t.Errorf("%s's : (%x: %s) storage failed. Expected %x, got %x (%v %v)\n", name, obj.Address()[0:4], addr, vexp, v, ethutil.BigD(vexp), ethutil.BigD(v))
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+		var (
+			ret  []byte
+			gas  *big.Int
+			err  error
+			logs state.Logs
+		)
 
-// // I've created a new function for each tests so it's easier to identify where the problem lies if any of them fail.
-// func TestVMArithmetic(t *testing.T) {
-// 	//helper.Logger.SetLogLevel(5)
-// 	const fn = "../files/vmtests/vmArithmeticTest.json"
-// 	RunVmTest(fn, t)
-// }
+		isVmTest := len(test.Exec) > 0
+		if isVmTest {
+			ret, logs, gas, err = helper.RunVm(statedb, env, test.Exec)
+		} else {
+			ret, logs, gas, err = helper.RunState(statedb, env, test.Transaction)
+		}
 
-// /*
-// deleted?
-// func TestVMSystemOperation(t *testing.T) {
-// 	helper.Logger.SetLogLevel(5)
-// 	const fn = "../files/vmtests/vmSystemOperationsTest.json"
-// 	RunVmTest(fn, t)
-// }
-// */
+		rexp := helper.FromHex(test.Out)
+		if bytes.Compare(rexp, ret) != 0 {
+			t.Errorf("%s's return failed. Expected %x, got %x\n", name, rexp, ret)
+		}
 
-// func TestBitwiseLogicOperation(t *testing.T) {
-// 	const fn = "../files/vmtests/vmBitwiseLogicOperationTest.json"
-// 	RunVmTest(fn, t)
-// }
+		if isVmTest {
+			if len(test.Gas) == 0 && err == nil {
+				t.Errorf("%s's gas unspecified, indicating an error. VM returned (incorrectly) successfull", name)
+			} else {
+				gexp := ethutil.Big(test.Gas)
+				if gexp.Cmp(gas) != 0 {
+					t.Errorf("%s's gas failed. Expected %v, got %v\n", name, gexp, gas)
+				}
+			}
+		}
 
-// func TestBlockInfo(t *testing.T) {
-// 	const fn = "../files/vmtests/vmBlockInfoTest.json"
-// 	RunVmTest(fn, t)
-// }
+		for addr, account := range test.Post {
+			obj := statedb.GetStateObject(helper.FromHex(addr))
+			if obj == nil {
+				continue
+			}
 
-// func TestEnvironmentalInfo(t *testing.T) {
-// 	const fn = "../files/vmtests/vmEnvironmentalInfoTest.json"
-// 	RunVmTest(fn, t)
-// }
+			if len(test.Exec) == 0 {
+				if obj.Balance().Cmp(ethutil.Big(account.Balance)) != 0 {
+					t.Errorf("%s's : (%x) balance failed. Expected %v, got %v => %v\n", name, obj.Address()[:4], account.Balance, obj.Balance(), new(big.Int).Sub(ethutil.Big(account.Balance), obj.Balance()))
+				}
+			}
 
-// func TestFlowOperation(t *testing.T) {
-// 	helper.Logger.SetLogLevel(5)
-// 	const fn = "../files/vmtests/vmIOandFlowOperationsTest.json"
-// 	RunVmTest(fn, t)
-// }
+			for addr, value := range account.Storage {
+				v := obj.GetState(helper.FromHex(addr)).Bytes()
+				vexp := helper.FromHex(value)
 
-// func TestPushDupSwap(t *testing.T) {
-// 	const fn = "../files/vmtests/vmPushDupSwapTest.json"
-// 	RunVmTest(fn, t)
-// }
+				if bytes.Compare(v, vexp) != 0 {
+					t.Errorf("%s's : (%x: %s) storage failed. Expected %x, got %x (%v %v)\n", name, obj.Address()[0:4], addr, vexp, v, ethutil.BigD(vexp), ethutil.BigD(v))
+				}
+			}
+		}
 
-// func TestVMSha3(t *testing.T) {
-// 	const fn = "../files/vmtests/vmSha3Test.json"
-// 	RunVmTest(fn, t)
-// }
+		if len(test.Logs) > 0 {
+			for i, log := range test.Logs {
+				genBloom := ethutil.LeftPadBytes(types.LogsBloom(state.Logs{logs[i]}).Bytes(), 64)
+				if !bytes.Equal(genBloom, ethutil.Hex2Bytes(log.BloomF)) {
+					t.Errorf("bloom mismatch")
+				}
+			}
+		}
+	}
+	logger.Flush()
+}
 
-// func TestVm(t *testing.T) {
-// 	const fn = "../files/vmtests/vmtests.json"
-// 	RunVmTest(fn, t)
-// }
+// I've created a new function for each tests so it's easier to identify where the problem lies if any of them fail.
+func TestVMArithmetic(t *testing.T) {
+	const fn = "../files/VMTests/vmArithmeticTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestSystemOperations(t *testing.T) {
+	const fn = "../files/VMTests/vmSystemOperationsTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestBitwiseLogicOperation(t *testing.T) {
+	const fn = "../files/VMTests/vmBitwiseLogicOperationTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestBlockInfo(t *testing.T) {
+	const fn = "../files/VMTests/vmBlockInfoTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestEnvironmentalInfo(t *testing.T) {
+	const fn = "../files/VMTests/vmEnvironmentalInfoTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestFlowOperation(t *testing.T) {
+	const fn = "../files/VMTests/vmIOandFlowOperationsTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestPushDupSwap(t *testing.T) {
+	const fn = "../files/VMTests/vmPushDupSwapTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestVMSha3(t *testing.T) {
+	const fn = "../files/VMTests/vmSha3Test.json"
+	RunVmTest(fn, t)
+}
+
+func TestVm(t *testing.T) {
+	const fn = "../files/VMTests/vmtests.json"
+	RunVmTest(fn, t)
+}
+
+func TestVmLog(t *testing.T) {
+	const fn = "../files/VMTests/vmLogTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateSystemOperations(t *testing.T) {
+	const fn = "../files/StateTests/stSystemOperationsTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStatePreCompiledContracts(t *testing.T) {
+	const fn = "../files/StateTests/stPreCompiledContracts.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateRecursiveCreate(t *testing.T) {
+	const fn = "../files/StateTests/stRecursiveCreate.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateSpecial(t *testing.T) {
+	const fn = "../files/StateTests/stSpecialTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateRefund(t *testing.T) {
+	const fn = "../files/StateTests/stRefundTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateBlockHash(t *testing.T) {
+	const fn = "../files/StateTests/stBlockHashTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateInitCode(t *testing.T) {
+	const fn = "../files/StateTests/stInitCodeTest.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateLog(t *testing.T) {
+	const fn = "../files/StateTests/stLogTests.json"
+	RunVmTest(fn, t)
+}
+
+func TestStateTransaction(t *testing.T) {
+	const fn = "../files/StateTests/stTransactionTest.json"
+	RunVmTest(fn, t)
+}

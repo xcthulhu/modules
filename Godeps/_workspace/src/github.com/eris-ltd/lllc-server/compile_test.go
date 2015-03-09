@@ -13,7 +13,7 @@ func init() {
 }
 
 func testContract(t *testing.T, file string) {
-	our_code, err := Compile(file)
+	our_code, our_abi, err := Compile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,7 @@ func testContract(t *testing.T, file string) {
 	}
 
 	lang, _ := LangFromFile(file)
-	truth_code, err := CompileWrapper(file, lang)
+	truth_code, truth_abi, err := CompileWrapper(file, lang)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,6 +34,9 @@ func testContract(t *testing.T, file string) {
 	printCodeTop("them", truth_code, N)
 	if bytes.Compare(our_code, truth_code) != 0 {
 		t.Fatal(fmt.Errorf("Difference of %d", bytes.Compare(our_code, truth_code)))
+	}
+	if our_abi != truth_abi {
+		t.Fatal(fmt.Errorf("ABI results don't match:", our_abi, truth_abi))
 	}
 }
 

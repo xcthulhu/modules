@@ -836,6 +836,7 @@ func (p *Peer) handleHandshake(msg *monkwire.Msg) {
 	// Self connect detection
 	pubkey := p.thelonious.KeyManager().PublicKey()
 	if bytes.Compare(pubkey[1:], pub) == 0 {
+		peerlogger.Debugln("Connected to self. Disconnecting. If you don't think this should happen, change the peer's key")
 		p.Stop()
 
 		return
